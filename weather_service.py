@@ -133,18 +133,20 @@ class WeatherService:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "学校の入試広報部として、保護者や受験生に向けて心温まる丁寧なメッセージを書く専門家です。時候の挨拶は使わず、天気に関連した具体的で温かいアドバイスを中心に書いてください。"},
+                    {"role": "system", "content": "学校の入試広報部として、保護者や受験生に向けて心温まる丁寧なメッセージを書く専門家です。必ず天気情報と完全に一致する内容のメッセージを書いてください。天気の状況を無視したり、矛盾する内容は絶対に書かないでください。晴れの日に雨の話をしたり、暑い日に寒さの話をしたりしてはいけません。"},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=200,
-                temperature=0.7
+                temperature=0.4
             )
             
             message = response.choices[0].message.content.strip().strip('"').strip("'")
             return message
             
         except Exception as e:
-            return "今日も皆様にとって素敵な一日となりますよう、心よりお祈り申し上げます。"
+            st.warning(f"心温まるメッセージの生成に失敗しました: {e}")
+            # 天気情報に基づいたフォールバックメッセージを生成
+            return self._generate_fallback_message(weather_info)
     
     def _build_weather_extraction_prompt(self, weather_data: str, target_date_str: str, 
                                        target_date_alt: str, format_instructions: str) -> str:
@@ -175,6 +177,10 @@ class WeatherService:
     def _build_message_generation_prompt(self, weather_info: WeatherInfo, 
                                        formatted_date: str, weekday: str) -> str:
         """メッセージ生成用のプロンプトを構築"""
+        
+        # 天気に応じた具体的なガイダンスを生成
+        weather_guidance = self._get_weather_specific_guidance(weather_info)
+        
         return f"""
 以下の天気情報をもとに、学校のメールマガジン読者（保護者や受験生）に向けた心温まる丁寧語のメッセージを生成してください。
 
@@ -187,18 +193,92 @@ class WeatherService:
 - 降水確率: {weather_info.降水確率}
 - 快適具合: {weather_info.快適具合}
 
+{weather_guidance}
+
 要求事項：
-1. 礼儀正しい丁寧語で書く
-2. 読む人の心がほっこりするような温かみのある表現
-3. 気温や降水確率に応じた具体的で優しいアドバイス
+1. 必ず上記の天気条件ガイダンスに従って、天気の状況に合ったメッセージを書く
+2. 礼儀正しい丁寧語で書く
+3. 読む人の心がほっこりするような温かみのある表現
 4. 学校関係者らしい品格のある文章
 5. 50-80文字程度の適度な長さ
-6. 毎回異なる表現や視点を使用
-7. 時候の挨拶（「春の陽気」「初夏の候」など季節的な表現）は使わない
-8. 天気や気温に関連した具体的なアドバイスに重点を置く
+6. 時候の挨拶（「春の陽気」「初夏の候」など季節的な表現）は使わない
+7. 天気とまったく関係のない内容は書かない
+8. 天気情報に矛盾しない内容にする
 
-天気に合わせて、読者の方々への思いやりを込めたメッセージをお願いします。
+必ず天気の状況を正確に反映したメッセージを作成してください。
 """
+    
+    def _get_weather_specific_guidance(self, weather_info: WeatherInfo) -> str:
+        """天気条件に応じた具体的なガイダンスを生成"""
+        weather = weather_info.天気概況.lower()
+        temp_info = weather_info.気温.lower()
+        rain_prob = weather_info.降水確率.lower()
+        comfort = weather_info.快適具合.lower()
+        
+        guidance = "天気条件に応じたメッセージガイダンス：\n"
+        
+        # 天気による分岐
+        if "雨" in weather:
+            guidance += "- 雨の日なので、傘や濡れ対策について優しく言及する\n"
+            guidance += "- 室内での過ごし方や足元への気遣いを含める\n"
+            guidance += "- 雨の音や雨上がりの清々しさなど、雨の良い面も触れる\n"
+        elif "晴" in weather:
+            guidance += "- 晴天なので、明るく爽やかな表現を使う\n"
+            guidance += "- 日差しや紫外線対策について言及することもできる\n"
+            guidance += "- 外での活動やお散歩に適している旨を伝える\n"
+        elif "曇" in weather:
+            guidance += "- 曇りなので、穏やかで落ち着いた表現を使う\n"
+            guidance += "- 過ごしやすい天気であることを強調する\n"
+            guidance += "- 急な天候変化への軽い注意喚起もよい\n"
+        elif "雪" in weather:
+            guidance += "- 雪の日なので、防寒や足元の安全について言及する\n"
+            guidance += "- 雪景色の美しさや季節感を表現に含める\n"
+            guidance += "- 暖かい格好での外出を促す\n"
+        
+        # 気温による追加ガイダンス
+        if "低" in temp_info or "寒" in temp_info or "冷" in temp_info:
+            guidance += "- 気温が低いので、防寒対策や温かい服装について触れる\n"
+            guidance += "- 体調管理への気遣いを含める\n"
+        elif "高" in temp_info or "暖" in temp_info or "暑" in temp_info:
+            guidance += "- 気温が高いので、涼しく過ごす工夫や水分補給について触れる\n"
+            guidance += "- 熱中症対策への軽い注意喚起もよい\n"
+        
+        # 降水確率による追加ガイダンス
+        if "高" in rain_prob or "%" in rain_prob:
+            # 数値を抽出して判断
+            import re
+            numbers = re.findall(r'\d+', rain_prob)
+            if numbers:
+                prob = int(numbers[0])
+                if prob >= 60:
+                    guidance += "- 降水確率が高いので、傘の準備について言及する\n"
+                elif prob >= 30:
+                    guidance += "- 降水確率がやや高いので、念のため傘の準備を勧める\n"
+        
+        # 快適具合による調整
+        if "不快" in comfort or "蒸し暑" in comfort:
+            guidance += "- 快適でない気候なので、工夫して過ごせるよう励ます表現を使う\n"
+        elif "快適" in comfort or "過ごしやすい" in comfort:
+            guidance += "- 快適な気候なので、その良さを活かした表現を使う\n"
+        
+        guidance += "\n重要：これらのガイダンスに従って、天気の実際の状況と矛盾しないメッセージを必ず作成してください。"
+        
+        return guidance
+    
+    def _generate_fallback_message(self, weather_info: WeatherInfo) -> str:
+        """天気情報に基づいたフォールバックメッセージを生成"""
+        weather = weather_info.天気概況.lower()
+        
+        if "雨" in weather:
+            return "雨の日ですが、心穏やかにお過ごしいただけますよう願っております。足元にお気をつけください。"
+        elif "晴" in weather:
+            return "美しい晴天に恵まれ、清々しい一日をお過ごしいただけることと存じます。"
+        elif "曇" in weather:
+            return "落ち着いた曇り空の下、穏やかな一日をお過ごしください。"
+        elif "雪" in weather:
+            return "雪の降る日となりました。暖かくしてお過ごしいただき、足元にお気をつけください。"
+        else:
+            return "今日も皆様にとって素敵な一日となりますよう、心よりお祈り申し上げます。"
     
     def _parse_weather_response(self, response_text: str, parser: PydanticOutputParser) -> Optional[WeatherInfo]:
         """天気情報のレスポンスをパース"""
