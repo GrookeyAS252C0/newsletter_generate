@@ -270,17 +270,17 @@ class NewsletterUI:
         
         calendar_config = {
             'use_google_calendar': use_google_calendar,
-            'schedule_calendar_ids': [],
-            'event_calendar_ids': [],
+            'schedule_calendar_ids': ['nichidai1.haishin@gmail.com'],
+            'event_calendar_ids': ['c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814'],
             'event_keywords': ['説明会', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭', 'オープンスクール'],
             'credentials_path': 'credentials.json',
             'token_path': 'token.json'
         }
         
         if use_google_calendar:
-            st.sidebar.warning("⚠️ Google Calendar機能は無効化されています")
-            st.sidebar.info("CSVファイルからイベント情報を読み込みます")
-            calendar_config['use_google_calendar'] = False
+            st.sidebar.success("✅ Google Calendar機能が有効です")
+            st.sidebar.info("📅 学校行事: nichidai1.haishin@gmail.com")
+            st.sidebar.info("🎉 広報行事: c38f...cb814")
         else:
             st.sidebar.info("📄 CSVファイルベースのイベント取得を使用します")
         
