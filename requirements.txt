@@ -1,0 +1,44 @@
+# メルマガ「一日一知」生成システム - 必要なライブラリ
+
+# Streamlit (Webアプリケーション)
+streamlit>=1.28.0
+
+# OpenAI API
+openai>=1.0.0
+
+# LangChain (Webスクレイピング)
+langchain>=0.0.300
+langchain-community>=0.0.20
+
+# Pydantic (データ検証)
+pydantic>=2.0.0
+
+# テンプレートエンジン
+jinja2>=3.1.0
+
+# 環境変数管理
+python-dotenv>=1.0.0
+
+# Google API (YouTube + Calendar)
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.2.0
+
+# クリップボード操作 (オプション)
+pyperclip>=1.8.0
+
+# HTTP リクエスト
+requests>=2.28.0
+
+# 日付・時間処理
+python-dateutil>=2.8.0
+
+beautifulsoup4>=4.12
+lxml>=5.2     # 任意
+html5lib>=1.1 # 任意
+
+youtube-transcript-api>=0.6
+tiktoken>=0.7
+
+pytube>=15.0
