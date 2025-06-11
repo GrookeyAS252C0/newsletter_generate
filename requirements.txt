@@ -9,6 +9,7 @@ openai>=1.0.0
 # LangChain (Webスクレイピング)
 langchain>=0.0.300
 langchain-community>=0.0.20
+langchain-openai>=0.0.5
 
 # Pydantic (データ検証)
 pydantic>=2.0.0
