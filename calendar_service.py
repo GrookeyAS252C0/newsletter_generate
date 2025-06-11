@@ -213,11 +213,11 @@ class GoogleCalendarService:
             
             # 設定されているカレンダーIDとの照合
             st.info("🔍 設定されているカレンダーIDの確認:")
-            target_ids = ['nichidai1.haishin@gmail.com', 'c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814']
+            target_ids = ['nichidai1.haishin@gmail.com', 'c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814@group.calendar.google.com']
             for target_id in target_ids:
                 found = any(cal['id'] == target_id for cal in calendars)
                 status = "✅ 見つかりました" if found else "❌ アクセスできません"
-                st.info(f"- {target_id[:30]}... : {status}")
+                st.info(f"- {target_id[:40]}... : {status}")
             
             return calendars
             

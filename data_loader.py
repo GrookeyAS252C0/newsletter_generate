@@ -35,7 +35,7 @@ class EventDataService:
         # Google Calendar設定のデフォルト値
         self.calendar_config = calendar_config or {
             'schedule_calendar_ids': ['nichidai1.haishin@gmail.com'],  # 行事予定用カレンダーID
-            'event_calendar_ids': ['c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814'],     # 広報イベント用カレンダーID
+            'event_calendar_ids': ['c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814@group.calendar.google.com'],     # 広報イベント用カレンダーID
             'event_keywords': ['説明会', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭', 'オープンスクール'],
             'credentials_path': 'credentials.json',
             'token_path': 'token.json'
