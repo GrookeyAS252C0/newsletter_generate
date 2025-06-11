@@ -55,8 +55,11 @@ class GoogleCalendarService:
         """Google Calendar APIの認証を行う"""
         creds = None
         
-        # 既存のトークンファイルをチェック
-        if os.path.exists(self.token_path):
+        # Streamlit Cloud環境の判定
+        is_streamlit_cloud = hasattr(st, 'secrets')
+        
+        # 既存のトークンファイルをチェック（ローカル環境のみ）
+        if not is_streamlit_cloud and os.path.exists(self.token_path):
             try:
                 creds = Credentials.from_authorized_user_file(self.token_path, self.SCOPES)
                 st.info("✅ 既存の認証トークンを読み込みました")
@@ -136,8 +139,7 @@ class GoogleCalendarService:
                     raise FileNotFoundError("認証情報が見つかりません")
                 
                 try:
-                    # Streamlit Cloud環境の判定（st.secretsが存在する場合）
-                    is_streamlit_cloud = hasattr(st, 'secrets')
+                    # is_streamlit_cloud変数は既に定義済み
                     
                     if is_streamlit_cloud:
                         # Streamlit Cloud: 必ずサービスアカウント認証を使用
@@ -170,13 +172,16 @@ class GoogleCalendarService:
                             st.error(f"- client_email: {credentials_data.get('client_email', 'missing')}")
                     raise
             
-            # トークンを保存
-            try:
-                with open(self.token_path, 'w') as token:
-                    token.write(creds.to_json())
-                st.info(f"💾 認証トークンを保存しました: {self.token_path}")
-            except Exception as e:
-                st.warning(f"⚠️ トークン保存に失敗: {e}")
+            # トークンを保存（OAuth2認証の場合のみ）
+            if not is_streamlit_cloud:  # ローカル環境でのOAuth2認証の場合のみ保存
+                try:
+                    with open(self.token_path, 'w') as token:
+                        token.write(creds.to_json())
+                    st.info(f"💾 認証トークンを保存しました: {self.token_path}")
+                except Exception as e:
+                    st.warning(f"⚠️ トークン保存に失敗: {e}")
+            else:
+                st.info("🔐 サービスアカウント認証はトークン保存不要です")
         
         try:
             self.service = build('calendar', 'v3', credentials=creds)
