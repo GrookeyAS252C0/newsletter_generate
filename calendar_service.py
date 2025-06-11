@@ -77,7 +77,30 @@ class GoogleCalendarService:
             if not creds:
                 # Streamlit Cloudの場合はst.secretsから読み込む
                 credentials_data = None
-                if hasattr(st, 'secrets') and 'GOOGLE_CREDENTIALS' in st.secrets:
+                
+                # 個別設定からの読み込みを優先
+                if (hasattr(st, 'secrets') and 
+                    'GOOGLE_SERVICE_TYPE' in st.secrets and 
+                    'GOOGLE_PRIVATE_KEY' in st.secrets):
+                    try:
+                        credentials_data = {
+                            "type": st.secrets['GOOGLE_SERVICE_TYPE'],
+                            "project_id": st.secrets['GOOGLE_PROJECT_ID'],
+                            "private_key_id": st.secrets['GOOGLE_PRIVATE_KEY_ID'],
+                            "private_key": st.secrets['GOOGLE_PRIVATE_KEY'],
+                            "client_email": st.secrets['GOOGLE_CLIENT_EMAIL'],
+                            "client_id": st.secrets['GOOGLE_CLIENT_ID'],
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token",
+                            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                            "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{st.secrets['GOOGLE_CLIENT_EMAIL'].replace('@', '%40')}"
+                        }
+                        st.info("✅ Streamlit secrets（個別設定）から認証情報を読み込みました")
+                    except Exception as e:
+                        st.error(f"❌ Streamlit secrets（個別設定）からの読み込みに失敗: {e}")
+                
+                # 個別設定がない場合は従来のJSON形式を試行
+                elif hasattr(st, 'secrets') and 'GOOGLE_CREDENTIALS' in st.secrets:
                     try:
                         credentials_raw = st.secrets['GOOGLE_CREDENTIALS']
                         # 文字列の場合はJSONパース、辞書の場合はそのまま使用
@@ -88,9 +111,9 @@ class GoogleCalendarService:
                         else:
                             # すでに辞書形式の場合
                             credentials_data = credentials_raw
-                        st.info("✅ Streamlit secretsから認証情報を読み込みました")
+                        st.info("✅ Streamlit secrets（JSON形式）から認証情報を読み込みました")
                     except Exception as e:
-                        st.error(f"❌ Streamlit secretsからの読み込みに失敗: {e}")
+                        st.error(f"❌ Streamlit secrets（JSON形式）からの読み込みに失敗: {e}")
                         st.error(f"デバッグ情報: {type(st.secrets['GOOGLE_CREDENTIALS'])}")
                         # 生データを表示してデバッグ
                         if hasattr(st, 'secrets'):
