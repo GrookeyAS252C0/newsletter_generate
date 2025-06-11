@@ -196,15 +196,29 @@ class GoogleCalendarService:
             calendar_list = self.service.calendarList().list().execute()
             calendars = []
             
+            st.info("🔍 アクセス可能なカレンダー一覧:")
             for calendar in calendar_list.get('items', []):
-                calendars.append({
+                calendar_info = {
                     'id': calendar['id'],
                     'summary': calendar.get('summary', ''),
                     'description': calendar.get('description', ''),
                     'primary': calendar.get('primary', False)
-                })
+                }
+                calendars.append(calendar_info)
+                
+                # デバッグ情報として表示
+                st.info(f"📋 {calendar_info['summary']} (ID: {calendar_info['id'][:20]}...)")
             
             st.success(f"📅 {len(calendars)}個のカレンダーを取得しました")
+            
+            # 設定されているカレンダーIDとの照合
+            st.info("🔍 設定されているカレンダーIDの確認:")
+            target_ids = ['nichidai1.haishin@gmail.com', 'c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814']
+            for target_id in target_ids:
+                found = any(cal['id'] == target_id for cal in calendars)
+                status = "✅ 見つかりました" if found else "❌ アクセスできません"
+                st.info(f"- {target_id[:30]}... : {status}")
+            
             return calendars
             
         except HttpError as e:
