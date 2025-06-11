@@ -45,11 +45,24 @@ pip install -r requirements.txt
 
 ### 3. 環境変数の設定
 
+#### ローカル環境の場合
+
 `.env`ファイルをプロジェクトルートに作成し、以下の内容を記載：
 
 ```
 OPENAI_API_KEY=your_openai_api_key_here
 YOUTUBE_API_KEY=your_youtube_api_key_here
+```
+
+#### Streamlit Cloudの場合
+
+1. Streamlit Cloudのダッシュボードにアクセス
+2. アプリの設定画面を開く
+3. 「Secrets」セクションで以下を追加：
+
+```toml
+OPENAI_API_KEY = "your_openai_api_key_here"
+YOUTUBE_API_KEY = "your_youtube_api_key_here"
 ```
 
 ### 4. Google Calendar設定（オプション）

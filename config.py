@@ -40,9 +40,18 @@ class AppConfig:
         user_agent = os.getenv("USER_AGENT", "Newsletter-Generator/1.0 (Educational-Purpose)")
         os.environ["USER_AGENT"] = user_agent
         
+        # Streamlit Cloudの場合はst.secretsから取得
+        try:
+            import streamlit as st
+            openai_api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+            youtube_api_key = st.secrets.get("YOUTUBE_API_KEY", os.getenv("YOUTUBE_API_KEY"))
+        except:
+            openai_api_key = os.getenv("OPENAI_API_KEY", "")
+            youtube_api_key = os.getenv("YOUTUBE_API_KEY")
+        
         return cls(
-            openai_api_key=os.getenv("OPENAI_API_KEY", ""),
-            youtube_api_key=os.getenv("YOUTUBE_API_KEY"),
+            openai_api_key=openai_api_key,
+            youtube_api_key=youtube_api_key,
             user_agent=user_agent,
         )
 
