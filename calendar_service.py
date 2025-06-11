@@ -75,14 +75,33 @@ class GoogleCalendarService:
                     creds = None
             
             if not creds:
-                if not os.path.exists(self.credentials_path):
-                    st.error(f"❌ 認証情報ファイルが見つかりません: {self.credentials_path}")
-                    st.error("Google Cloud Consoleでcredentials.jsonを取得し、プロジェクトルートに配置してください")
-                    raise FileNotFoundError(f"認証情報ファイルが見つかりません: {self.credentials_path}")
+                # Streamlit Cloudの場合はst.secretsから読み込む
+                credentials_data = None
+                if hasattr(st, 'secrets') and 'GOOGLE_CREDENTIALS' in st.secrets:
+                    try:
+                        credentials_data = json.loads(st.secrets['GOOGLE_CREDENTIALS'])
+                        st.info("✅ Streamlit secretsから認証情報を読み込みました")
+                    except Exception as e:
+                        st.error(f"❌ Streamlit secretsからの読み込みに失敗: {e}")
+                
+                # ローカルファイルから読み込む
+                if not credentials_data and os.path.exists(self.credentials_path):
+                    try:
+                        with open(self.credentials_path, 'r') as f:
+                            credentials_data = json.load(f)
+                        st.info("✅ ローカルファイルから認証情報を読み込みました")
+                    except Exception as e:
+                        st.error(f"❌ ローカルファイルの読み込みに失敗: {e}")
+                
+                if not credentials_data:
+                    st.error("❌ 認証情報が見つかりません")
+                    st.error("ローカル環境: credentials.jsonをプロジェクトルートに配置してください")
+                    st.error("Streamlit Cloud: SecretsにGOOGLE_CREDENTIALSを設定してください")
+                    raise FileNotFoundError("認証情報が見つかりません")
                 
                 try:
-                    flow = InstalledAppFlow.from_client_secrets_file(
-                        self.credentials_path, self.SCOPES)
+                    flow = InstalledAppFlow.from_client_config(
+                        credentials_data, self.SCOPES)
                     creds = flow.run_local_server(port=0)
                     st.success("✅ 新しい認証を完了しました")
                 except Exception as e:
