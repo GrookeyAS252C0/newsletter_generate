@@ -136,9 +136,11 @@ class GoogleCalendarService:
                     raise FileNotFoundError("認証情報が見つかりません")
                 
                 try:
-                    # Streamlit Cloudかローカル環境かを判定
-                    if hasattr(st, 'secrets') and 'GOOGLE_CREDENTIALS' in st.secrets:
-                        # Streamlit Cloud: サービスアカウント認証を試行
+                    # Streamlit Cloud環境の判定（st.secretsが存在する場合）
+                    is_streamlit_cloud = hasattr(st, 'secrets')
+                    
+                    if is_streamlit_cloud:
+                        # Streamlit Cloud: 必ずサービスアカウント認証を使用
                         if 'type' in credentials_data and credentials_data['type'] == 'service_account':
                             from google.oauth2 import service_account
                             creds = service_account.Credentials.from_service_account_info(
@@ -147,6 +149,7 @@ class GoogleCalendarService:
                         else:
                             st.error("❌ Streamlit Cloudではサービスアカウント認証が必要です")
                             st.error("OAuth2認証情報ではなく、サービスアカウントキーを使用してください")
+                            st.error(f"取得した認証情報のtype: {credentials_data.get('type', 'unknown')}")
                             raise ValueError("サービスアカウント認証が必要です")
                     else:
                         # ローカル環境: OAuth2フロー
@@ -159,6 +162,12 @@ class GoogleCalendarService:
                     if hasattr(st, 'secrets'):
                         st.error("💡 Streamlit Cloudではサービスアカウントキー（JSON）が必要です")
                         st.error("Google Cloud Console > IAM > サービスアカウントでキーを作成してください")
+                        # デバッグ情報を追加
+                        if credentials_data:
+                            st.error(f"認証情報の内容確認:")
+                            st.error(f"- type: {credentials_data.get('type', 'missing')}")
+                            st.error(f"- project_id: {credentials_data.get('project_id', 'missing')}")
+                            st.error(f"- client_email: {credentials_data.get('client_email', 'missing')}")
                     raise
             
             # トークンを保存
