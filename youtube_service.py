@@ -1,5 +1,5 @@
 """
-YouTube API サービス
+YouTube API サービス - 簡易版（字幕機能削除済み）
 """
 
 import time
@@ -30,7 +30,7 @@ from utils import DateUtils
 
 
 class YouTubeService:
-    """YouTube API関連の処理を担当"""
+    """YouTube API関連の処理を担当（字幕機能削除済み）"""
     
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -179,6 +179,3 @@ class YouTubeService:
             st.info("🔍 関連する動画は見つかりませんでした")
         
         return unique_videos
-    
-    from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
-import openai

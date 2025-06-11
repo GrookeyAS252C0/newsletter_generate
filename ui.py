@@ -95,7 +95,7 @@ class NewsletterUI:
             
             debug_print("_setup_sidebar() 実行中...")
             # サイドバー設定（Google Calendar設定を含む）
-            publish_date, manual_channel_id, manual_issue_number, generate_button, self.calendar_config = self._setup_sidebar()
+            publish_date, manual_issue_number, generate_button, self.calendar_config = self._setup_sidebar()
             debug_print("_setup_sidebar() 完了")
             
             # NewsletterGeneratorを初期化（Google Calendar設定を含む）
@@ -110,14 +110,10 @@ class NewsletterUI:
             self._display_event_preview(publish_date)
             debug_print("_display_event_preview() 完了")
             
-            debug_print("_display_youtube_preview() 実行中...")
-            self._display_youtube_preview(publish_date, manual_channel_id)
-            debug_print("_display_youtube_preview() 完了")
-            
             # メルマガ生成処理（サイドバーのボタンが押された時のみ）
             if generate_button:
                 debug_print("generate_button が押されました")
-                self._generate_and_display_newsletter(publish_date, manual_channel_id, manual_issue_number)
+                self._generate_and_display_newsletter(publish_date, manual_issue_number)
             else:
                 debug_print("generate_button は押されていません")
                 
@@ -151,15 +147,12 @@ class NewsletterUI:
             2. 以下の内容を記載:
             ```
             OPENAI_API_KEY=your_api_key_here
-            YOUTUBE_API_KEY=your_youtube_api_key_here
             ```
             """)
             return
         
-        if not self.config.youtube_api_key:
-            st.warning("⚠️ YouTube APIキーが設定されていません（YouTube動画検索は無効になります）")
     
-    def _setup_sidebar(self) -> Tuple[date, str, Optional[int], bool, dict]:
+    def _setup_sidebar(self) -> Tuple[date, Optional[int], bool, dict]:
         """サイドバーの設定（Google Calendar設定を含む）"""
         st.sidebar.header("⚙️ メルマガ設定")
         
@@ -219,28 +212,6 @@ class NewsletterUI:
         
         st.sidebar.success("✅ 複数データソースから正確な気温情報を取得")
         
-        # YouTube設定
-        st.sidebar.subheader("📺 YouTube設定")
-        youtube_channel_url = f"https://www.youtube.com/@{self.config.youtube_channel_handle}"
-        st.sidebar.info(f"📺 対象チャンネル: 日大一公式")
-        st.sidebar.code(youtube_channel_url)
-        
-        # 手動チャンネルID設定
-        manual_channel_id = st.sidebar.text_input(
-            "チャンネルID（手動設定）",
-            value="",
-            help="チャンネルIDが分かっている場合は直接入力してください"
-        )
-        
-        # API設定状況の表示
-        if self.config.youtube_api_key:
-            st.sidebar.success("✅ YouTube APIキーが設定されています")
-        else:
-            st.sidebar.warning("⚠️ YouTube APIキーが未設定")
-        
-        if manual_channel_id:
-            st.sidebar.success(f"✅ 手動チャンネルID: {manual_channel_id[:10]}...")
-        
         st.sidebar.success("✅ OpenAI APIキーが設定されています")
         
         # 生成ボタンをサイドバーの最下部に配置
@@ -254,7 +225,7 @@ class NewsletterUI:
             help="設定した内容でメルマガを生成します"
         )
         
-        return publish_date, manual_channel_id, manual_issue_number, generate_button, calendar_config
+        return publish_date, manual_issue_number, generate_button, calendar_config
     
     # [カレンダー設定の関数は先ほど作成したものをここに挿入]
     def _setup_calendar_settings(self) -> dict:
@@ -324,34 +295,15 @@ class NewsletterUI:
             else:
                 st.info("ジェネレーターが初期化されていません")
     
-    def _display_youtube_preview(self, publish_date: date, manual_channel_id: str):
-        """YouTubeプレビューの表示"""
-        if not self.config.youtube_api_key:
-            st.info("YouTube APIキーが設定されていないため、動画検索はスキップされます。")
-            return
-        
-        formatted_date = f"{publish_date.year}年{publish_date.month}月{publish_date.day}日" + DateUtils.get_japanese_weekday(publish_date)
-        st.subheader("📺 YouTube動画検索")
-        
-        # 検索は実行せず、設定情報のみ表示
-        channel_id = manual_channel_id.strip() if manual_channel_id.strip() else None
-        if channel_id:
-            st.info(f"🎯 手動設定されたチャンネルIDを使用予定: {channel_id}")
-        else:
-            st.info(f"📺 {formatted_date}に関連するYouTube動画を検索予定")
-        
-        st.markdown("💡 サイドバーの「🔄 メルマガを生成」ボタンを押すとYouTube動画検索とメルマガ生成が実行されます。")
     
-    def _generate_and_display_newsletter(self, publish_date: date, manual_channel_id: str, 
-                                        manual_issue_number: Optional[int]):
+    def _generate_and_display_newsletter(self, publish_date: date, manual_issue_number: Optional[int]):
         """メルマガ生成と表示"""
         # 生成処理の開始を明確に表示
         st.success("🚀 メルマガ生成を開始します...")
         
         with st.spinner("🌐 複数の天気予報データソースから情報を取得中..."):
             try:
-                channel_id = manual_channel_id.strip() if manual_channel_id.strip() else None
-                result = self.generator.generate_newsletter(publish_date, channel_id, manual_issue_number)
+                result = self.generator.generate_newsletter(publish_date, manual_issue_number)
                 
                 # 生成完了メッセージ
                 st.success("✅ メルマガ生成が完了しました！")
@@ -363,34 +315,12 @@ class NewsletterUI:
                 
                 with col2:
                     self._display_newsletter_content(result, publish_date)
-                
-                # YouTube動画検索結果を別セクションで表示
-                if result['youtube_videos']:
-                    st.subheader("📺 検索されたYouTube動画")
-                    self._display_youtube_results(result['youtube_videos'])
-                else:
-                    st.info("📺 該当日に関連するYouTube動画は見つかりませんでした")
                     
             except Exception as e:
                 st.error(f"❌ メルマガ生成中にエラーが発生しました: {e}")
                 import traceback
                 st.error(f"詳細エラー: {traceback.format_exc()}")
     
-    def _display_youtube_results(self, youtube_videos: List[YouTubeVideo]):
-        """YouTube検索結果を表示"""
-        st.success(f"**{len(youtube_videos)}件の関連動画が見つかりました**")
-        
-        for video in youtube_videos:
-            with st.expander(f"📹 {video.title}", expanded=False):
-                col_thumb, col_info = st.columns([1, 2])
-                with col_thumb:
-                    st.image(video.thumbnail, width=120)
-                with col_info:
-                    st.markdown(f"**タイトル**: {video.title}")
-                    st.markdown(f"**URL**: {video.url}")
-                    st.markdown(f"**投稿日**: {video.published_at[:10]}")
-                    st.markdown(f"**チャンネル**: {video.channel_title}")
-                    st.markdown(f"**マッチした検索語**: {video.matched_query}")
     
     def _display_generation_details(self, result: Dict[str, Any]):
         """生成詳細の表示"""
