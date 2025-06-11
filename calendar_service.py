@@ -100,12 +100,29 @@ class GoogleCalendarService:
                     raise FileNotFoundError("認証情報が見つかりません")
                 
                 try:
-                    flow = InstalledAppFlow.from_client_config(
-                        credentials_data, self.SCOPES)
-                    creds = flow.run_local_server(port=0)
-                    st.success("✅ 新しい認証を完了しました")
+                    # Streamlit Cloudかローカル環境かを判定
+                    if hasattr(st, 'secrets') and 'GOOGLE_CREDENTIALS' in st.secrets:
+                        # Streamlit Cloud: サービスアカウント認証を試行
+                        if 'type' in credentials_data and credentials_data['type'] == 'service_account':
+                            from google.oauth2 import service_account
+                            creds = service_account.Credentials.from_service_account_info(
+                                credentials_data, scopes=self.SCOPES)
+                            st.success("✅ サービスアカウント認証を完了しました")
+                        else:
+                            st.error("❌ Streamlit Cloudではサービスアカウント認証が必要です")
+                            st.error("OAuth2認証情報ではなく、サービスアカウントキーを使用してください")
+                            raise ValueError("サービスアカウント認証が必要です")
+                    else:
+                        # ローカル環境: OAuth2フロー
+                        flow = InstalledAppFlow.from_client_config(
+                            credentials_data, self.SCOPES)
+                        creds = flow.run_local_server(port=0)
+                        st.success("✅ 新しい認証を完了しました")
                 except Exception as e:
                     st.error(f"❌ 認証フローに失敗: {e}")
+                    if hasattr(st, 'secrets'):
+                        st.error("💡 Streamlit Cloudではサービスアカウントキー（JSON）が必要です")
+                        st.error("Google Cloud Console > IAM > サービスアカウントでキーを作成してください")
                     raise
             
             # トークンを保存

@@ -65,31 +65,30 @@ OPENAI_API_KEY = "your_openai_api_key_here"
 YOUTUBE_API_KEY = "your_youtube_api_key_here"
 
 # Google Calendar APIを使用する場合（オプション）
-# credentials.jsonの内容をJSON文字列として追加
-GOOGLE_CREDENTIALS = '''
-{
-  "type": "service_account",
-  "project_id": "your-project-id",
-  "private_key_id": "...",
-  "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-  "client_email": "...",
-  "client_id": "...",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "..."
-}
-'''
+# サービスアカウントキーのJSON内容を1行で記述
+GOOGLE_CREDENTIALS = '{"type":"service_account","project_id":"your-project-id","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n","client_email":"...","client_id":"...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"..."}'
 ```
 
 ### 4. Google Calendar設定（オプション）
 
-Google Calendar APIを使用する場合：
+#### ローカル環境の場合
 
 1. Google Cloud Consoleでプロジェクトを作成
 2. Calendar APIを有効化
 3. OAuth2認証情報を作成
 4. `credentials.json`をダウンロードしてプロジェクトルートに配置
+
+#### Streamlit Cloudの場合
+
+1. Google Cloud Consoleでプロジェクトを作成
+2. Calendar APIを有効化
+3. **サービスアカウント**を作成：
+   - IAM と管理 > サービス アカウント
+   - 「サービス アカウントを作成」をクリック
+   - 役割: 「基本」>「編集者」を付与
+4. サービスアカウントキー（JSON）をダウンロード
+5. JSONファイルの内容を1行にまとめてStreamlit Secretsに追加
+6. 使用するGoogle Calendarでサービスアカウントのメールアドレスを共有設定で追加
 
 ## 使用方法
 
