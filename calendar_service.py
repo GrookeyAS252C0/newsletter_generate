@@ -79,10 +79,23 @@ class GoogleCalendarService:
                 credentials_data = None
                 if hasattr(st, 'secrets') and 'GOOGLE_CREDENTIALS' in st.secrets:
                     try:
-                        credentials_data = json.loads(st.secrets['GOOGLE_CREDENTIALS'])
+                        credentials_raw = st.secrets['GOOGLE_CREDENTIALS']
+                        # 文字列の場合はJSONパース、辞書の場合はそのまま使用
+                        if isinstance(credentials_raw, str):
+                            # 改行やスペースを正規化してからパース
+                            credentials_clean = credentials_raw.replace('\n', '').replace('  ', ' ').strip()
+                            credentials_data = json.loads(credentials_clean)
+                        else:
+                            # すでに辞書形式の場合
+                            credentials_data = credentials_raw
                         st.info("✅ Streamlit secretsから認証情報を読み込みました")
                     except Exception as e:
                         st.error(f"❌ Streamlit secretsからの読み込みに失敗: {e}")
+                        st.error(f"デバッグ情報: {type(st.secrets['GOOGLE_CREDENTIALS'])}")
+                        # 生データを表示してデバッグ
+                        if hasattr(st, 'secrets'):
+                            raw_data = str(st.secrets['GOOGLE_CREDENTIALS'])[:200] + "..."
+                            st.error(f"生データ(最初200文字): {raw_data}")
                 
                 # ローカルファイルから読み込む
                 if not credentials_data and os.path.exists(self.credentials_path):
