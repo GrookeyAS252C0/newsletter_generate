@@ -163,7 +163,7 @@ class NewsletterGenerator:
         st.info("✅ 天気情報取得完了")
         
         # 3. YouTube動画情報を取得（発行日と完全一致するもののみ）
-        st.info("📹 Step 4: YouTube動画情報の取得（発行日と完全一致）")
+        st.info("📹 Step 4: YouTube動画情報の取得（発行日と完全一致、YYYY\\MM/DDパターン含む）")
         youtube_videos = []
         if self.youtube_service:
             try:

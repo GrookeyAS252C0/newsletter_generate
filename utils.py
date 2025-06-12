@@ -65,12 +65,15 @@ class DateUtils:
         
         return [
             target_date.strftime("%Y年%m月%d日"),   # 2025年05月25日
+            target_date.strftime("%Y/%m/%d"),        # 2025/05/25
+            target_date.strftime("%Y-%m-%d"),        # 2025-05-25
+            target_date.strftime("%Y\\%m/%d"),       # 2025\05/25
             f"{year}年{month}月{day}日",             # 2025年5月25日
+            f"{year}\\{month:02d}/{day:02d}",       # 2025\05/25 (with zero padding)
+            f"{year}\\{month}/{day}",                # 2025\5/25 (without zero padding)
             target_date.strftime("%m月%d日"),        # 05月25日
             f"{month}月{day}日",                     # 5月25日
             target_date.strftime("%m/%d"),           # 05/25
             f"{month}/{day}",                        # 5/25
-            target_date.strftime("%Y-%m-%d"),        # 2025-05-25
-            target_date.strftime("%Y/%m/%d"),        # 2025/05/25
             target_date.strftime("%m-%d"),           # 05-25
         ]

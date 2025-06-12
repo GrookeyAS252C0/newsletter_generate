@@ -94,8 +94,8 @@ class YouTubeService:
             if not channel_id:
                 channel_id = self.get_channel_id("nichidaiichi")
             
-            # 完全一致検索のため、主要な日付形式のみ使用（YYYY年MM月DD日, YYYY/MM/DD, YYYY-MM-DD）
-            date_queries = DateUtils.get_date_formats(target_date)[:3]
+            # 完全一致検索のため、主要な日付形式を使用（YYYY年MM月DD日, YYYY/MM/DD, YYYY-MM-DD, YYYY\MM/DD）
+            date_queries = DateUtils.get_date_formats(target_date)[:7]  # 最初の7つにはYYYY\MM/DDパターンも含まれる
             found_videos = []
             
             st.info(f"🎯 {target_date.strftime('%Y年%m月%d日')}に完全一致する動画を検索中...")
@@ -153,8 +153,8 @@ class YouTubeService:
             video_title = item['snippet']['title']
             
             # タイトルに日付が含まれているかチェック（完全一致のみ）
-            # メインの日付形式のみチェック（最初の3つ: YYYY年MM月DD日, YYYY/MM/DD, YYYY-MM-DD）
-            exact_date_formats = date_queries[:3] if len(date_queries) >= 3 else date_queries
+            # メインの日付形式をチェック（YYYY年MM月DD日, YYYY/MM/DD, YYYY-MM-DD, YYYY\MM/DD等）
+            exact_date_formats = date_queries[:7] if len(date_queries) >= 7 else date_queries
             
             if any(date_str in video_title for date_str in exact_date_formats):
                 videos.append(YouTubeVideo(
