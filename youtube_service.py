@@ -85,7 +85,7 @@ class YouTubeService:
         return None
     
     def search_videos_by_date(self, target_date: date, channel_id: Optional[str] = None) -> List[YouTubeVideo]:
-        """指定日に関連する動画を検索"""
+        """指定日に完全一致する動画を検索（タイトルに日付が含まれるもののみ）"""
         if not self.youtube:
             st.warning("YouTube APIが利用できません")
             return []
@@ -94,8 +94,11 @@ class YouTubeService:
             if not channel_id:
                 channel_id = self.get_channel_id("nichidaiichi")
             
-            date_queries = DateUtils.get_date_formats(target_date)[:6]  # 最初の6つの形式のみ使用
+            # 完全一致検索のため、主要な日付形式のみ使用（YYYY年MM月DD日, YYYY/MM/DD, YYYY-MM-DD）
+            date_queries = DateUtils.get_date_formats(target_date)[:3]
             found_videos = []
+            
+            st.info(f"🎯 {target_date.strftime('%Y年%m月%d日')}に完全一致する動画を検索中...")
             
             for query in date_queries:
                 try:
@@ -149,8 +152,11 @@ class YouTubeService:
         for item in search_response['items']:
             video_title = item['snippet']['title']
             
-            # タイトルに日付が含まれているかチェック
-            if any(date_str in video_title for date_str in date_queries):
+            # タイトルに日付が含まれているかチェック（完全一致のみ）
+            # メインの日付形式のみチェック（最初の3つ: YYYY年MM月DD日, YYYY/MM/DD, YYYY-MM-DD）
+            exact_date_formats = date_queries[:3] if len(date_queries) >= 3 else date_queries
+            
+            if any(date_str in video_title for date_str in exact_date_formats):
                 videos.append(YouTubeVideo(
                     title=video_title,
                     url=f"https://www.youtube.com/watch?v={item['id']['videoId']}",

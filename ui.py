@@ -297,17 +297,17 @@ class NewsletterUI:
         
         with col_youtube:
             st.subheader("📹 YouTube動画")
-            st.caption("YouTube APIから取得 → メルマガの「4. YouTube動画情報」セクションに出力")
+            st.caption("YouTube APIから取得（発行日と完全一致） → メルマガの「4. YouTube動画情報」セクションに出力")
             
             if self.generator and self.generator.youtube_service:
                 try:
                     youtube_videos = self.generator.youtube_service.search_videos_by_date(publish_date)
                     if youtube_videos:
-                        st.success(f"**{formatted_date}のYouTube動画** ({len(youtube_videos)}件)")
+                        st.success(f"**{formatted_date}と完全一致する動画** ({len(youtube_videos)}件)")
                         for video in youtube_videos[:3]:  # 最大3件表示
                             st.markdown(f"• [{video.title}]({video.url})")
                     else:
-                        st.info(f"**{formatted_date}**: YouTube動画は見つかりませんでした。")
+                        st.info(f"**{formatted_date}**: 日付が含まれる動画は見つかりませんでした。")
                 except Exception as e:
                     st.warning(f"YouTube動画の取得に失敗: {e}")
             else:

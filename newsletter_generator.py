@@ -89,10 +89,10 @@ class NewsletterFormatter:
     def format_youtube_for_newsletter(videos: List[YouTubeVideo]) -> str:
         """
         YouTube動画情報をメルマガ用にフォーマット
-        動画タイトルとURLを表示
+        動画タイトルとURLを表示（発行日と完全一致するもののみ）
         """
         if not videos:
-            return "本日のYouTube投稿は見つかりませんでした。"
+            return "本日の日付が含まれるYouTube動画は見つかりませんでした。"
         
         formatted_videos = []
         for i, video in enumerate(videos[:3]):  # 最大3つまで表示
@@ -162,13 +162,16 @@ class NewsletterGenerator:
                 weather_text = self.formatter.format_weather_for_newsletter(weather_info, target_date, heartwarming_message)
         st.info("✅ 天気情報取得完了")
         
-        # 3. YouTube動画情報を取得
-        st.info("📹 Step 4: YouTube動画情報の取得")
+        # 3. YouTube動画情報を取得（発行日と完全一致するもののみ）
+        st.info("📹 Step 4: YouTube動画情報の取得（発行日と完全一致）")
         youtube_videos = []
         if self.youtube_service:
             try:
                 youtube_videos = self.youtube_service.search_videos_by_date(target_date)
-                st.info(f"✅ YouTube動画取得完了: {len(youtube_videos)} 件")
+                if youtube_videos:
+                    st.info(f"✅ 発行日と一致するYouTube動画: {len(youtube_videos)} 件")
+                else:
+                    st.info(f"✅ {target_date.strftime('%Y年%m月%d日')}の動画は見つかりませんでした")
             except Exception as e:
                 st.warning(f"YouTube動画の取得に失敗: {e}")
         else:
