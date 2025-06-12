@@ -34,9 +34,10 @@ try:
 except ImportError:
     raise ImportError("jinja2がインストールされていません: pip install jinja2")
 
-from config import AppConfig, WeatherInfo, EventInfo
+from config import AppConfig, WeatherInfo, EventInfo, YouTubeVideo
 from data_loader import EventDataService
 from weather_service import WeatherService
+from youtube_service import YouTubeService
 from utils import DateUtils
 
 
@@ -84,6 +85,24 @@ class NewsletterFormatter:
         
         return "\n".join(formatted_events)
     
+    @staticmethod
+    def format_youtube_for_newsletter(videos: List[YouTubeVideo]) -> str:
+        """
+        YouTube動画情報をメルマガ用にフォーマット
+        動画タイトルとURLを表示
+        """
+        if not videos:
+            return "本日のYouTube投稿は見つかりませんでした。"
+        
+        formatted_videos = []
+        for i, video in enumerate(videos[:3]):  # 最大3つまで表示
+            formatted_videos.append(f"・{video.title}")
+            formatted_videos.append(f"  {video.url}")
+            if i < len(videos) - 1:
+                formatted_videos.append("")  # 動画間に空行
+        
+        return "\n".join(formatted_videos)
+    
 
 
 class NewsletterGenerator:
@@ -99,6 +118,17 @@ class NewsletterGenerator:
         )
         
         self.weather_service = WeatherService(config.openai_api_key)
+        
+        # YouTube APIが利用可能かチェック
+        if config.youtube_api_key:
+            try:
+                self.youtube_service = YouTubeService(config.youtube_api_key)
+            except Exception as e:
+                st.warning(f"YouTube APIの初期化に失敗: {e}")
+                self.youtube_service = None
+        else:
+            self.youtube_service = None
+            
         self.formatter = NewsletterFormatter()
 
 
@@ -132,13 +162,25 @@ class NewsletterGenerator:
                 weather_text = self.formatter.format_weather_for_newsletter(weather_info, target_date, heartwarming_message)
         st.info("✅ 天気情報取得完了")
         
-        # 3. 発行No.の決定
+        # 3. YouTube動画情報を取得
+        st.info("📹 Step 4: YouTube動画情報の取得")
+        youtube_videos = []
+        if self.youtube_service:
+            try:
+                youtube_videos = self.youtube_service.search_videos_by_date(target_date)
+                st.info(f"✅ YouTube動画取得完了: {len(youtube_videos)} 件")
+            except Exception as e:
+                st.warning(f"YouTube動画の取得に失敗: {e}")
+        else:
+            st.info("YouTube APIが設定されていないため、動画情報をスキップします")
+        
+        # 4. 発行No.の決定
         issue_number = manual_issue_number if manual_issue_number is not None else DateUtils.get_issue_number(target_date)
         
-        # 4. メルマガを生成
-        st.info("📧 Step 4: メルマガコンテンツの生成")
+        # 5. メルマガを生成
+        st.info("📧 Step 5: メルマガコンテンツの生成")
         newsletter_content = self._generate_newsletter_content(
-            weather_text, schedule_events, event_events, target_date, issue_number
+            weather_text, schedule_events, event_events, youtube_videos, target_date, issue_number
         )
         st.success("✅ メルマガ生成完了！")
         
@@ -148,6 +190,7 @@ class NewsletterGenerator:
             'weather_text': weather_text,
             'schedule_events': schedule_events,
             'event_events': event_events,
+            'youtube_videos': youtube_videos,
             'metadata': {
                 'target_date': target_date,
                 'formatted_date': f"{target_date.year}年{target_date.month}月{target_date.day}日" + DateUtils.get_japanese_weekday(target_date),
@@ -159,7 +202,8 @@ class NewsletterGenerator:
         }
     
     def _generate_newsletter_content(self, weather_text: str, schedule_events: List[str], 
-                                   event_events: List[EventInfo], target_date: date, issue_number: int) -> str:
+                                   event_events: List[EventInfo], youtube_videos: List[YouTubeVideo],
+                                   target_date: date, issue_number: int) -> str:
         """Jinja2テンプレートを使用してメルマガコンテンツを生成"""
         template = Template(self._get_newsletter_template())
         
@@ -169,6 +213,7 @@ class NewsletterGenerator:
         
         schedule_text = self.formatter.format_schedule_for_newsletter(schedule_events)
         event_text = self.formatter.format_events_for_newsletter(event_events)
+        youtube_text = self.formatter.format_youtube_for_newsletter(youtube_videos)
         
         return template.render(
             発行日=formatted_date,
@@ -176,6 +221,7 @@ class NewsletterGenerator:
             weather=weather_text,
             schedule=schedule_text,
             event=event_text,
+            youtube=youtube_text,
             曜日=weekday,
             曜日テーマ=weekday_theme
         )
@@ -204,7 +250,12 @@ class NewsletterGenerator:
 {{ event }}
 -----
 
-4. 今日の学校案内（{{ 曜日 }}曜日のテーマ：{{ 曜日テーマ }}）
+4. YouTube動画情報
+-----
+{{ youtube }}
+-----
+
+5. 今日の学校案内（{{ 曜日 }}曜日のテーマ：{{ 曜日テーマ }}）
 -----
 
 -----

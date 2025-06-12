@@ -263,7 +263,7 @@ class NewsletterUI:
         formatted_date = f"{publish_date.year}年{publish_date.month}月{publish_date.day}日" + DateUtils.get_japanese_weekday(publish_date)
         st.info(f"📅 **メールマガジン発行日**: {formatted_date}")
         
-        col_schedule, col_event = st.columns([1, 1])
+        col_schedule, col_event, col_youtube = st.columns([1, 1, 1])
         
         with col_schedule:
             st.subheader("📅 今日の日大一")
@@ -294,6 +294,24 @@ class NewsletterUI:
                     st.info("今後1ヶ月以内に予定されているイベントはありません。")
             else:
                 st.info("ジェネレーターが初期化されていません")
+        
+        with col_youtube:
+            st.subheader("📹 YouTube動画")
+            st.caption("YouTube APIから取得 → メルマガの「4. YouTube動画情報」セクションに出力")
+            
+            if self.generator and self.generator.youtube_service:
+                try:
+                    youtube_videos = self.generator.youtube_service.search_videos_by_date(publish_date)
+                    if youtube_videos:
+                        st.success(f"**{formatted_date}のYouTube動画** ({len(youtube_videos)}件)")
+                        for video in youtube_videos[:3]:  # 最大3件表示
+                            st.markdown(f"• [{video.title}]({video.url})")
+                    else:
+                        st.info(f"**{formatted_date}**: YouTube動画は見つかりませんでした。")
+                except Exception as e:
+                    st.warning(f"YouTube動画の取得に失敗: {e}")
+            else:
+                st.info("YouTube APIが設定されていません")
     
     
     def _generate_and_display_newsletter(self, publish_date: date, manual_issue_number: Optional[int]):
@@ -346,6 +364,12 @@ class NewsletterUI:
         with st.expander("🔍 詳細情報", expanded=False):
             st.markdown("#### 天気情報（文章）")
             st.markdown(result['weather_text'] or "天気情報の取得に失敗しました")
+            
+            # YouTube動画情報を追加
+            if 'youtube_videos' in result and result['youtube_videos']:
+                st.markdown("#### YouTube動画情報")
+                for video in result['youtube_videos'][:3]:
+                    st.markdown(f"- [{video.title}]({video.url})")
             
             st.markdown("#### 発行情報")
             issue_status = "手動設定" if metadata['is_manual_issue_number'] else "自動計算"
