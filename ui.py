@@ -3,7 +3,7 @@ Streamlit UI管理（Google Calendar対応版）
 """
 
 import os
-from datetime import date
+from datetime import date, datetime
 from typing import List, Dict, Any, Optional, Tuple
 
 import streamlit as st
@@ -158,9 +158,11 @@ class NewsletterUI:
         
         # 発行日の選択
         st.sidebar.subheader("📅 発行日設定")
+        # 今日の日付を明示的に取得
+        today = datetime.now().date()
         publish_date = st.sidebar.date_input(
             "メールマガジン発行日",
-            value=date.today(),
+            value=today,
             help="天気予報を取得したい日付を選択してください"
         )
         
