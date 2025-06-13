@@ -23,20 +23,26 @@ class DateUtils:
     
     @staticmethod
     def get_issue_number(target_date: date) -> int:
-        """発行No.を計算（2025年4月3日を基準とし、土日は発行しない）"""
+        """発行No.を計算（2025年4月3日を基準とし、日曜日は発行しない）"""
         base_date = date(2025, 4, 3)  # 基準日（木曜日）
         
         if target_date < base_date:
             return 1  # 基準日より前の場合は1号とする
         
-        # 基準日から対象日までの平日（月-金）をカウント
+        # 対象日が日曜日の場合、直前の土曜日の号数を返す
+        if target_date.weekday() == 6:  # 日曜日(6)
+            # 直前の土曜日を探す
+            last_saturday = target_date - timedelta(days=1)
+            target_date = last_saturday
+        
+        # 基準日から対象日までの日曜日以外をカウント
         current_date = base_date
         issue_count = 1  # 基準日を1号とする
         
         while current_date < target_date:
             current_date += timedelta(days=1)
-            # 月曜日(0)から金曜日(4)のみカウント
-            if current_date.weekday() < 5:  # 0-6 (月-日)
+            # 日曜日(6)以外をカウント
+            if current_date.weekday() != 6:  # 0-6 (月-日)
                 issue_count += 1
         
         return issue_count
