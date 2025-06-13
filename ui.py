@@ -171,14 +171,13 @@ class NewsletterUI:
         st.sidebar.subheader("📄 発行No.設定")
         auto_issue_number = DateUtils.get_issue_number(publish_date)
         
-        # 土日の場合の警告表示
-        if publish_date.weekday() >= 5:  # 土曜日(5)、日曜日(6)
-            weekday_name = "土曜日" if publish_date.weekday() == 5 else "日曜日"
-            st.sidebar.warning(f"⚠️ {weekday_name}は通常発行しません")
+        # 日曜日の場合の警告表示
+        if publish_date.weekday() == 6:  # 日曜日(6)
+            st.sidebar.warning(f"⚠️ 日曜日は通常発行しません")
         
         use_manual_issue_number = st.sidebar.checkbox(
             "発行No.を手動設定",
-            value=publish_date.weekday() >= 5,  # 土日の場合はデフォルトで手動設定ON
+            value=publish_date.weekday() == 6,  # 日曜日の場合はデフォルトで手動設定ON
             help="チェックすると発行No.を手動で入力できます"
         )
         
@@ -193,7 +192,7 @@ class NewsletterUI:
             )
             st.sidebar.success(f"📄 手動設定: No.{manual_issue_number}")
         else:
-            st.sidebar.info(f"📄 自動計算: No.{auto_issue_number} (2025年4月3日基準・平日のみ)")
+            st.sidebar.info(f"📄 自動計算: No.{auto_issue_number} (2025年4月3日基準・日曜除く)")
         
         # Google Calendar設定
         calendar_config = self._setup_calendar_settings()
