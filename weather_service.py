@@ -246,11 +246,11 @@ class WeatherService:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "学校の入試広報部として、保護者や受験生に向けて心温まる丁寧なメッセージを書く専門家です。必ず天気情報と完全に一致する内容のメッセージを書いてください。天気の状況を無視したり、矛盾する内容は絶対に書かないでください。晴れの日に雨の話をしたり、暑い日に寒さの話をしたりしてはいけません。"},
+                    {"role": "system", "content": "学校の入試広報部として、保護者や受験生に向けて心温まる丁寧なメッセージを書く専門家です。必ず天気・月齢・気圧の全要素を統合したメッセージを作成してください。月の満ち欠けは詩的に、気圧は体調への配慮として、天気は快適性として表現し、すべてを調和させた一つのメッセージにまとめてください。いずれかの要素を無視することは絶対に禁止です。"},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=200,
-                temperature=0.4
+                max_tokens=250,
+                temperature=0.3
             )
             
             message = response.choices[0].message.content.strip().strip('"').strip("'")
@@ -328,17 +328,34 @@ class WeatherService:
 気圧に応じたメッセージガイダンス：
 {self._get_pressure_guidance(weather_info.気圧状況)}
 
-要求事項：
-1. 必ず上記の天気条件ガイダンスに従って、天気の状況に合ったメッセージを書く
-2. 礼儀正しい丁寧語で書く
-3. 読む人の心がほっこりするような温かみのある表現
-4. 学校関係者らしい品格のある文章
-5. 50-80文字程度の適度な長さ
-6. 時候の挨拶（「春の陽気」「初夏の候」など季節的な表現）は使わない
-7. 天気とまったく関係のない内容は書かない
-8. 天気情報に矛盾しない内容にする
+**重要な要求事項：**
+1. **必須要素の組み込み**: 以下の全要素を必ずメッセージに反映させる
+   - 天気情報（{weather_info.天気概況}）
+   - 気温・湿度・風速の体感
+   - 月の満ち欠け（{weather_info.月齢}）の情緒的表現
+   - 気圧状況（{weather_info.気圧状況}）による体調への配慮
 
-必ず天気の状況を正確に反映したメッセージを作成してください。
+2. **具体的な組み込み方法**:
+   - 月齢は詩的・情緒的な表現で自然に織り込む
+   - 気圧は体調への気遣いとして優しく表現
+   - 天気・気温・湿度は快適性として表現
+   - 全要素を調和させた一つの心温まるメッセージにする
+
+3. **文体・長さ**:
+   - 礼儀正しい丁寧語で書く
+   - 50-80文字程度の適度な長さ
+   - 学校関係者らしい品格のある文章
+   - 読む人の心がほっこりするような温かみのある表現
+
+4. **禁止事項**:
+   - 時候の挨拶（「春の陽気」「初夏の候」など）は使わない
+   - 天気・月齢・気圧のいずれかを無視したメッセージは作らない
+   - 情報に矛盾する内容は書かない
+
+**例文参考**:
+「今夜は{weather_info.月齢}の美しい夜空、{weather_info.天気概況}の爽やかな一日となりました。{weather_info.気圧状況}の影響で体調の変化を感じる方もいらっしゃるかもしれませんが、穏やかにお過ごしください。」
+
+必ず天気・月齢・気圧の全要素を自然に統合した心温まるメッセージを作成してください。
 """
     
     def _get_weather_specific_guidance(self, weather_info: WeatherInfo) -> str:
@@ -470,31 +487,46 @@ class WeatherService:
 - 「穏やかな気候」「快適にお過ごしください」などの表現を使用"""
     
     def _generate_fallback_message(self, weather_info: WeatherInfo) -> str:
-        """天気情報に基づいたフォールバックメッセージを生成"""
+        """天気・月齢・気圧を統合したフォールバックメッセージを生成"""
         weather = weather_info.天気概況.lower()
         moon_phase = weather_info.月齢
+        pressure = weather_info.気圧状況
         
-        base_message = ""
+        # 天気ベース
         if "雨" in weather:
-            base_message = "雨の日ですが、心穏やかにお過ごしいただけますよう願っております。足元にお気をつけください。"
+            weather_part = "雨の日ですが"
         elif "晴" in weather:
-            base_message = "美しい晴天に恵まれ、清々しい一日をお過ごしいただけることと存じます。"
+            weather_part = "美しい晴天に恵まれ"
         elif "曇" in weather:
-            base_message = "落ち着いた曇り空の下、穏やかな一日をお過ごしください。"
+            weather_part = "落ち着いた曇り空の下"
         elif "雪" in weather:
-            base_message = "雪の降る日となりました。暖かくしてお過ごしいただき、足元にお気をつけください。"
+            weather_part = "雪景色の美しい日"
         else:
-            base_message = "今日も皆様にとって素敵な一日となりますよう、心よりお祈り申し上げます。"
+            weather_part = "穏やかな一日"
         
-        # 月齢に応じた追加メッセージ
+        # 月齢部分
         if moon_phase == "満月":
-            return f"{base_message} 今夜は満月の美しい光をお楽しみください。"
+            moon_part = "今夜は満月の美しい光に包まれ"
         elif moon_phase == "新月":
-            return f"{base_message} 新月の静寂な夜、心新たにお過ごしください。"
+            moon_part = "新月の静寂な夜空に心を落ち着かせ"
         elif "三日月" in moon_phase:
-            return f"{base_message} 美しい三日月の夜空をご覧ください。"
+            moon_part = "美しい三日月の夜空を眺めながら"
+        elif "十三夜" in moon_phase:
+            moon_part = "風情ある十三夜の月明かりの下"
+        elif "二十六夜" in moon_phase:
+            moon_part = "夜明け前の静寂な二十六夜を感じながら"
         else:
-            return base_message
+            moon_part = f"{moon_phase}の夜空を見上げ"
+        
+        # 気圧部分
+        if "低気圧" in pressure or "気圧の谷" in pressure:
+            pressure_part = "気圧の変化で体調を崩しやすい時期ですが、お体をお大事にお過ごしください。"
+        elif "高気圧" in pressure and "谷" not in pressure:
+            pressure_part = "安定した気圧で心身ともに快適にお過ごしいただけることと存じます。"
+        else:
+            pressure_part = "気圧の変化にお気をつけて、ゆっくりとお過ごしください。"
+        
+        return f"{weather_part}、{moon_part}、{pressure_part}"
     
     def _parse_weather_response(self, response_text: str, parser: PydanticOutputParser) -> Optional[WeatherInfo]:
         """天気情報のレスポンスをパース"""
