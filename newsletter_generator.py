@@ -218,9 +218,14 @@ class NewsletterGenerator:
         event_text = self.formatter.format_events_for_newsletter(event_events)
         youtube_text = self.formatter.format_youtube_for_newsletter(youtube_videos)
         
+        # 生成日時（日本時間）を取得
+        generated_time = DateUtils.get_now_jst()
+        generated_timestamp = generated_time.strftime('%Y年%m月%d日 %H:%M:%S')
+        
         return template.render(
             発行日=formatted_date,
             発行No=issue_number,
+            生成日時=generated_timestamp,
             weather=weather_text,
             schedule=schedule_text,
             event=event_text,
@@ -232,6 +237,7 @@ class NewsletterGenerator:
     def _get_newsletter_template(self) -> str:
         """メルマガテンプレートを取得"""
         return """『一日一知』日大一を毎日少しずつ知る学校案内 {{ 発行日 }}, No.{{ 発行No }}
+生成日時: {{ 生成日時 }} (JST)
 
 日本大学第一中学・高等学校にご関心をお寄せいただき、誠にありがとうございます。「メルマガ『一日一知』日大一を毎日少しずつ知る学校案内」にお申込みいただいた皆様に、今日の日大一の様子をお伝えします。
 
