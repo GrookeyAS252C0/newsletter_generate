@@ -30,6 +30,11 @@ except ImportError:
     raise ImportError("openaiがインストールされていません: pip install openai")
 
 try:
+    import requests
+except ImportError:
+    raise ImportError("requestsがインストールされていません: pip install requests")
+
+try:
     # LangChainの警告を抑制してインポート
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="USER_AGENT environment variable not set")
@@ -48,6 +53,56 @@ class WeatherService:
     
     def __init__(self, openai_api_key: str):
         self.client = openai.OpenAI(api_key=openai_api_key)
+    
+    def get_moon_phase(self, target_date: date) -> str:
+        """月齢情報を取得して月の状態を返す"""
+        try:
+            # 墨田区の緯度・経度（東京スカイツリー周辺）
+            lat = 35.71
+            lon = 139.81
+            
+            # 月齢APIのURL（まぢぽん製作所）
+            url = f"https://mgpn.org/api/moon/position.cgi?json&lat={lat}&lon={lon}&y={target_date.year}&m={target_date.month}&d={target_date.day}&h=12"
+            
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if data.get("status") == 200:
+                moon_age = data["result"]["age"]
+                return self._get_moon_phase_name(moon_age)
+            else:
+                st.warning("月齢情報の取得に失敗しました")
+                return "不明"
+                
+        except Exception as e:
+            st.warning(f"月齢情報の取得でエラーが発生しました: {e}")
+            return "不明"
+    
+    def _get_moon_phase_name(self, moon_age: float) -> str:
+        """月齢から月の満ち欠けの名前を取得"""
+        # 月齢は0-29.5日の周期
+        age = moon_age % 29.5
+        
+        if age < 1.85:
+            return "新月"
+        elif age < 7.4:
+            return "三日月"
+        elif age < 9.25:
+            return "上弦の月"
+        elif age < 13.75:
+            return "十三夜"
+        elif age < 16.6:
+            return "満月"
+        elif age < 20.05:
+            return "十六夜"
+        elif age < 22.1:
+            return "下弦の月"
+        elif age < 25.95:
+            return "二十六夜"
+        else:
+            return "新月間近"
     
     def load_weather_data(self, urls: List[str]) -> str:
         """複数の天気予報サイトからデータを取得して統合"""
@@ -95,6 +150,9 @@ class WeatherService:
     def extract_weather_info(self, weather_data: str, target_date: date) -> Optional[WeatherInfo]:
         """天気データから構造化された情報を抽出"""
         try:
+            # 月齢情報を取得
+            moon_phase = self.get_moon_phase(target_date)
+            
             parser = PydanticOutputParser(pydantic_object=WeatherInfo)
             format_instructions = parser.get_format_instructions()
             
@@ -116,7 +174,13 @@ class WeatherService:
             )
             
             response_text = response.choices[0].message.content.strip()
-            return self._parse_weather_response(response_text, parser)
+            weather_info = self._parse_weather_response(response_text, parser)
+            
+            # 月齢情報を追加
+            if weather_info:
+                weather_info.月齢 = moon_phase
+            
+            return weather_info
             
         except Exception as e:
             st.error(f"天気情報の抽出に失敗: {e}")
@@ -164,6 +228,18 @@ class WeatherService:
 4. 降水確率（午前・午後別）
 5. 天気概況（晴れ、曇り、雨など）
 6. 快適具合（気温と湿度から判断した過ごしやすさ）
+   基本的な気温基準：
+   - 最高気温33度以上：「とても暑い」
+   - 最高気温28-32度：「暑い」
+   - 最高気温20-27度：「過ごしやすい」
+   - 最高気温10-19度：「肌寒い」または「涼しい」
+   - 最高気温10度未満：「寒い」
+   
+   調整要因：
+   - 湿度80%以上：より不快に感じる（「蒸し暑い」「じめじめ」など）
+   - 雨や雪：体感温度が下がる傾向
+   - 風速：風が強い場合は体感温度に影響
+   これらの要因を総合的に判断して、適切な快適度を決定してください。
 
 {format_instructions}
 
@@ -192,8 +268,12 @@ class WeatherService:
 - 風速: {weather_info.風速}
 - 降水確率: {weather_info.降水確率}
 - 快適具合: {weather_info.快適具合}
+- 月の満ち欠け: {weather_info.月齢}
 
 {weather_guidance}
+
+月齢に応じたメッセージガイダンス：
+{self._get_moon_phase_guidance(weather_info.月齢)}
 
 要求事項：
 1. 必ず上記の天気条件ガイダンスに従って、天気の状況に合ったメッセージを書く
@@ -265,20 +345,75 @@ class WeatherService:
         
         return guidance
     
+    def _get_moon_phase_guidance(self, moon_phase: str) -> str:
+        """月齢に応じたメッセージガイダンスを生成"""
+        if moon_phase == "新月":
+            return """- 新月は新しい始まりの象徴。受験勉強の新たなスタートや目標設定について触れる
+- 静寂で集中に適した夜として表現する
+- 「心新たに」「新たな気持ちで」などの表現を使用"""
+        elif moon_phase == "三日月":
+            return """- 成長の兆しとして表現する
+- 希望や未来への期待を込めた表現を使用
+- 「少しずつ成長」「前進」などのキーワードを含める"""
+        elif moon_phase == "上弦の月":
+            return """- 努力が実を結ぶ時期として表現
+- バランスの取れた状態を示唆
+- 「着実な歩み」「努力の成果」などを含める"""
+        elif moon_phase == "十三夜":
+            return """- 日本の美意識「十三夜」に触れる
+- 秋の美しさや情緒を表現（季節に応じて）
+- 「美しい月夜」「風情ある夜」などの表現"""
+        elif moon_phase == "満月":
+            return """- 完成や充実を象徴する表現
+- エネルギーに満ちた夜として描写
+- 「満ちた光」「豊かな時間」「完成に向けて」などを含める"""
+        elif moon_phase == "十六夜":
+            return """- 「いざよい」の美しい響きを活用
+- 少し遅れて昇る月の趣を表現
+- 「ゆったりとした時の流れ」「趣のある夜」などを含める"""
+        elif moon_phase == "下弦の月":
+            return """- 振り返りと準備の時期として表現
+- 次のステップへの準備期間を示唆
+- 「これまでの歩みを振り返り」「次への準備」などを含める"""
+        elif moon_phase == "二十六夜":
+            return """- 待つことの美学を表現
+- 夜明け前の静寂な美しさ
+- 「静かな時間」「待つことの大切さ」などを含める"""
+        elif moon_phase == "新月間近":
+            return """- 新たなサイクルへの準備期間
+- リセットと再生の時期として表現
+- 「新しいスタートに向けて」「心の準備」などを含める"""
+        else:
+            return """- 月の美しさや夜空の魅力を一般的に表現
+- 自然の営みの素晴らしさを含める
+- 「美しい夜空」「自然の恵み」などの表現を使用"""
+    
     def _generate_fallback_message(self, weather_info: WeatherInfo) -> str:
         """天気情報に基づいたフォールバックメッセージを生成"""
         weather = weather_info.天気概況.lower()
+        moon_phase = weather_info.月齢
         
+        base_message = ""
         if "雨" in weather:
-            return "雨の日ですが、心穏やかにお過ごしいただけますよう願っております。足元にお気をつけください。"
+            base_message = "雨の日ですが、心穏やかにお過ごしいただけますよう願っております。足元にお気をつけください。"
         elif "晴" in weather:
-            return "美しい晴天に恵まれ、清々しい一日をお過ごしいただけることと存じます。"
+            base_message = "美しい晴天に恵まれ、清々しい一日をお過ごしいただけることと存じます。"
         elif "曇" in weather:
-            return "落ち着いた曇り空の下、穏やかな一日をお過ごしください。"
+            base_message = "落ち着いた曇り空の下、穏やかな一日をお過ごしください。"
         elif "雪" in weather:
-            return "雪の降る日となりました。暖かくしてお過ごしいただき、足元にお気をつけください。"
+            base_message = "雪の降る日となりました。暖かくしてお過ごしいただき、足元にお気をつけください。"
         else:
-            return "今日も皆様にとって素敵な一日となりますよう、心よりお祈り申し上げます。"
+            base_message = "今日も皆様にとって素敵な一日となりますよう、心よりお祈り申し上げます。"
+        
+        # 月齢に応じた追加メッセージ
+        if moon_phase == "満月":
+            return f"{base_message} 今夜は満月の美しい光をお楽しみください。"
+        elif moon_phase == "新月":
+            return f"{base_message} 新月の静寂な夜、心新たにお過ごしください。"
+        elif "三日月" in moon_phase:
+            return f"{base_message} 美しい三日月の夜空をご覧ください。"
+        else:
+            return base_message
     
     def _parse_weather_response(self, response_text: str, parser: PydanticOutputParser) -> Optional[WeatherInfo]:
         """天気情報のレスポンスをパース"""
