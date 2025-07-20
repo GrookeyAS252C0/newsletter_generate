@@ -2,7 +2,7 @@
 ユーティリティ関数
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List
 
 
@@ -46,6 +46,18 @@ class DateUtils:
                 issue_count += 1
         
         return issue_count
+    
+    @staticmethod
+    def get_today_jst() -> date:
+        """日本時間（JST）で今日の日付を取得"""
+        jst = timezone(timedelta(hours=9))
+        return datetime.now(jst).date()
+    
+    @staticmethod
+    def get_now_jst() -> datetime:
+        """日本時間（JST）で現在の日時を取得"""
+        jst = timezone(timedelta(hours=9))
+        return datetime.now(jst)
     
     @staticmethod
     def get_weekday_theme(date_obj: date) -> str:

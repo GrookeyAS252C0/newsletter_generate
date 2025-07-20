@@ -158,8 +158,8 @@ class NewsletterUI:
         
         # 発行日の選択
         st.sidebar.subheader("📅 発行日設定")
-        # 今日の日付を明示的に取得
-        today = datetime.now().date()
+        # 日本時間で今日の日付を取得
+        today = DateUtils.get_today_jst()
         publish_date = st.sidebar.date_input(
             "メールマガジン発行日",
             value=today,
@@ -374,6 +374,10 @@ class NewsletterUI:
     def _display_newsletter_content(self, result: Dict[str, Any], publish_date: date):
         """メルマガコンテンツの表示"""
         st.subheader("📧 メルマガプレビュー")
+        
+        # 生成日時を表示（日本時間）
+        generated_time = DateUtils.get_now_jst()
+        st.caption(f"生成日時: {generated_time.strftime('%Y年%m月%d日 %H:%M:%S')} (JST)")
         
         newsletter_content = result['content']
         st.code(newsletter_content, language="text")
