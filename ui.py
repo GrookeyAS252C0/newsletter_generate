@@ -345,7 +345,8 @@ class NewsletterUI:
                 "風速": result['weather_info'].風速,
                 "降水確率": result['weather_info'].降水確率,
                 "天気概況": result['weather_info'].天気概況,
-                "快適具合": result['weather_info'].快適具合
+                "快適具合": result['weather_info'].快適具合,
+                "月齢": result['weather_info'].月齢
             }
             st.json(weather_dict)
         
