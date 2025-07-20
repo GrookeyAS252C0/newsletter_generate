@@ -80,6 +80,51 @@ class WeatherService:
             st.warning(f"月齢情報の取得でエラーが発生しました: {e}")
             return "不明"
     
+    def get_pressure_info(self, target_date: date) -> str:
+        """気象庁互換APIから気圧情報を取得"""
+        try:
+            # 東京のcityID（墨田区も含む東京地方）
+            city_id = "130010"
+            url = f"https://weather.tsukumijima.net/api/forecast?city={city_id}"
+            
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # description.textから気圧情報を抽出
+            description_text = data.get("description", {}).get("text", "")
+            return self._extract_pressure_from_text(description_text)
+            
+        except Exception as e:
+            st.warning(f"気圧情報の取得でエラーが発生しました: {e}")
+            return "不明"
+    
+    def _extract_pressure_from_text(self, text: str) -> str:
+        """テキストから気圧状況を抽出"""
+        if not text:
+            return "不明"
+        
+        # 気圧に関するキーワードを検索
+        if "高気圧に覆われ" in text:
+            if "気圧の谷" in text:
+                return "高気圧圏内だが気圧の谷の影響"
+            else:
+                return "高気圧に覆われる"
+        elif "低気圧" in text:
+            return "低気圧の影響"
+        elif "気圧の谷" in text:
+            return "気圧の谷の影響"
+        elif "気圧配置" in text:
+            return "気圧配置の変化"
+        elif "前線" in text:
+            if "高気圧" in text:
+                return "前線と高気圧の影響"
+            else:
+                return "前線の影響"
+        else:
+            return "安定した気圧"
+    
     def _get_moon_phase_name(self, moon_age: float) -> str:
         """月齢から月の満ち欠けの名前を取得"""
         # 月齢は0-29.5日の周期
@@ -153,6 +198,9 @@ class WeatherService:
             # 月齢情報を取得
             moon_phase = self.get_moon_phase(target_date)
             
+            # 気圧情報を取得
+            pressure_info = self.get_pressure_info(target_date)
+            
             parser = PydanticOutputParser(pydantic_object=WeatherInfo)
             format_instructions = parser.get_format_instructions()
             
@@ -176,9 +224,10 @@ class WeatherService:
             response_text = response.choices[0].message.content.strip()
             weather_info = self._parse_weather_response(response_text, parser)
             
-            # 月齢情報を追加
+            # 月齢・気圧情報を追加
             if weather_info:
                 weather_info.月齢 = moon_phase
+                weather_info.気圧状況 = pressure_info
             
             return weather_info
             
@@ -269,11 +318,15 @@ class WeatherService:
 - 降水確率: {weather_info.降水確率}
 - 快適具合: {weather_info.快適具合}
 - 月の満ち欠け: {weather_info.月齢}
+- 気圧状況: {weather_info.気圧状況}
 
 {weather_guidance}
 
 月齢に応じたメッセージガイダンス：
 {self._get_moon_phase_guidance(weather_info.月齢)}
+
+気圧に応じたメッセージガイダンス：
+{self._get_pressure_guidance(weather_info.気圧状況)}
 
 要求事項：
 1. 必ず上記の天気条件ガイダンスに従って、天気の状況に合ったメッセージを書く
@@ -387,6 +440,34 @@ class WeatherService:
             return """- 月の美しさや夜空の魅力を一般的に表現
 - 自然の営みの素晴らしさを含める
 - 「美しい夜空」「自然の恵み」などの表現を使用"""
+    
+    def _get_pressure_guidance(self, pressure_status: str) -> str:
+        """気圧状況に応じたメッセージガイダンスを生成"""
+        if "高気圧" in pressure_status:
+            if "気圧の谷" in pressure_status:
+                return """- 高気圧圏内だが気圧の谷の影響で不安定
+- 体調の変化に注意を促す表現
+- 「気圧の変化にお気をつけください」「体調管理にご注意を」などを含める"""
+            else:
+                return """- 高気圧で安定した気候
+- 爽やかで心地よい気候として表現
+- 「安定した気候」「心地よい日」「体調も安定」などの表現を使用"""
+        elif "低気圧" in pressure_status:
+            return """- 低気圧の影響で体調不良になりやすい
+- 頭痛や関節痛への配慮を示す
+- 「体調の変化にお気をつけください」「無理をなさらず」などを含める"""
+        elif "気圧の谷" in pressure_status:
+            return """- 気圧の変化で体調に影響が出やすい
+- 敏感な方への配慮メッセージ
+- 「気圧の変化を感じる方はお気をつけください」「ゆっくりお過ごしを」などを含める"""
+        elif "前線" in pressure_status:
+            return """- 前線の影響で天候・気圧が不安定
+- 体調管理への注意喚起
+- 「天候の変化に合わせて体調管理を」「お体をお大事に」などを含める"""
+        else:
+            return """- 安定した気圧状況
+- 過ごしやすい日として表現
+- 「穏やかな気候」「快適にお過ごしください」などの表現を使用"""
     
     def _generate_fallback_message(self, weather_info: WeatherInfo) -> str:
         """天気情報に基づいたフォールバックメッセージを生成"""

@@ -65,6 +65,7 @@ class WeatherInfo(BaseModel):
     天気概況: str = Field(description="天気の概況（例：晴れ時々曇り）")
     快適具合: str = Field(description="過ごしやすさの評価（例：過ごしやすい、蒸し暑い、肌寒い）")
     月齢: str = Field(description="月の満ち欠けの状態（例：新月、上弦の月、満月、下弦の月）", default="")
+    気圧状況: str = Field(description="気圧の状況（例：高気圧、低気圧、気圧の谷、気圧変化なし）", default="")
 
 
 @dataclass
