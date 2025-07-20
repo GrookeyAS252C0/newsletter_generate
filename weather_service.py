@@ -71,7 +71,8 @@ class WeatherService:
             
             if data.get("status") == 200:
                 moon_age = data["result"]["age"]
-                return self._get_moon_phase_name(moon_age)
+                days_info = self._calculate_days_to_next_phase(moon_age)
+                return days_info
             else:
                 st.warning("月齢情報の取得に失敗しました")
                 return "不明"
@@ -148,6 +149,40 @@ class WeatherService:
             return "二十六夜"
         else:
             return "新月間近"
+    
+    def _calculate_days_to_next_phase(self, moon_age: float) -> str:
+        """次の満月または新月までの日数を計算"""
+        # 月齢は0-29.5日の周期
+        age = moon_age % 29.5
+        
+        # 満月は約14.75日（29.5/2）
+        # 新月は0日または29.5日
+        
+        # 次の新月までの日数
+        if age <= 14.75:  # 新月→満月の期間
+            days_to_new_moon = 29.5 - age
+            days_to_full_moon = 14.75 - age
+        else:  # 満月→新月の期間
+            days_to_new_moon = 29.5 - age
+            days_to_full_moon = 14.75 + (29.5 - age)
+        
+        # より近い方を選択
+        if days_to_new_moon <= days_to_full_moon:
+            days = int(round(days_to_new_moon))
+            if days == 0:
+                return "今日が新月"
+            elif days == 1:
+                return "明日が新月"
+            else:
+                return f"新月まであと{days}日"
+        else:
+            days = int(round(days_to_full_moon))
+            if days == 0:
+                return "今日が満月"
+            elif days == 1:
+                return "明日が満月"
+            else:
+                return f"満月まであと{days}日"
     
     def load_weather_data(self, urls: List[str]) -> str:
         """複数の天気予報サイトからデータを取得して統合"""
@@ -417,46 +452,36 @@ class WeatherService:
     
     def _get_moon_phase_guidance(self, moon_phase: str) -> str:
         """月齢に応じたメッセージガイダンスを生成"""
-        if moon_phase == "新月":
-            return """- 新月は新しい始まりの象徴。受験勉強の新たなスタートや目標設定について触れる
-- 静寂で集中に適した夜として表現する
-- 「心新たに」「新たな気持ちで」などの表現を使用"""
-        elif moon_phase == "三日月":
-            return """- 成長の兆しとして表現する
-- 希望や未来への期待を込めた表現を使用
-- 「少しずつ成長」「前進」などのキーワードを含める"""
-        elif moon_phase == "上弦の月":
-            return """- 努力が実を結ぶ時期として表現
-- バランスの取れた状態を示唆
-- 「着実な歩み」「努力の成果」などを含める"""
-        elif moon_phase == "十三夜":
-            return """- 日本の美意識「十三夜」に触れる
-- 秋の美しさや情緒を表現（季節に応じて）
-- 「美しい月夜」「風情ある夜」などの表現"""
-        elif moon_phase == "満月":
-            return """- 完成や充実を象徴する表現
-- エネルギーに満ちた夜として描写
-- 「満ちた光」「豊かな時間」「完成に向けて」などを含める"""
-        elif moon_phase == "十六夜":
-            return """- 「いざよい」の美しい響きを活用
-- 少し遅れて昇る月の趣を表現
-- 「ゆったりとした時の流れ」「趣のある夜」などを含める"""
-        elif moon_phase == "下弦の月":
-            return """- 振り返りと準備の時期として表現
-- 次のステップへの準備期間を示唆
-- 「これまでの歩みを振り返り」「次への準備」などを含める"""
-        elif moon_phase == "二十六夜":
-            return """- 待つことの美学を表現
-- 夜明け前の静寂な美しさ
-- 「静かな時間」「待つことの大切さ」などを含める"""
-        elif moon_phase == "新月間近":
-            return """- 新たなサイクルへの準備期間
-- リセットと再生の時期として表現
-- 「新しいスタートに向けて」「心の準備」などを含める"""
+        if "新月まであと" in moon_phase:
+            return """- 新月に向かう時期として表現
+- カウントダウンの期待感を表現
+- 「新月に向けて心の準備を」「新月まで○日」などを含める
+- 新しいスタートへの準備期間として表現"""
+        elif "満月まであと" in moon_phase:
+            return """- 満月に向かう高まりを表現
+- エネルギーが蓄積される時期として表現
+- 「満月に向けて充実した日々」「満月まで○日」などを含める
+- 完成に向かう過程として表現"""
+        elif "今日が新月" in moon_phase:
+            return """- 新月の特別さを強調
+- 新しい始まりの象徴として表現
+- 「今日は新月」「心新たに」「新たな気持ちで」などの表現を使用"""
+        elif "明日が新月" in moon_phase:
+            return """- 明日の新月への準備を表現
+- 新しい始まりへの心構えを示唆
+- 「明日は新月」「心の準備を」などの表現を使用"""
+        elif "今日が満月" in moon_phase:
+            return """- 満月の特別さを強調
+- 完成や充実を象徴する表現
+- 「今日は満月」「満ちた光」「エネルギーに満ちた夜」などを含める"""
+        elif "明日が満月" in moon_phase:
+            return """- 明日の満月への期待を表現
+- 完成への最終段階として表現
+- 「明日は満月」「完成に向けて」などを含める"""
         else:
-            return """- 月の美しさや夜空の魅力を一般的に表現
+            return """- 月の満ち欠けのサイクルを表現
 - 自然の営みの素晴らしさを含める
-- 「美しい夜空」「自然の恵み」などの表現を使用"""
+- 「月の美しさ」「時の流れ」などの表現を使用"""
     
     def _get_pressure_guidance(self, pressure_status: str) -> str:
         """気圧状況に応じたメッセージガイダンスを生成"""
@@ -505,18 +530,20 @@ class WeatherService:
             weather_part = "穏やかな一日"
         
         # 月齢部分
-        if moon_phase == "満月":
+        if "今日が満月" in moon_phase:
             moon_part = "今夜は満月の美しい光に包まれ"
-        elif moon_phase == "新月":
+        elif "明日が満月" in moon_phase:
+            moon_part = "明日の満月を楽しみに"
+        elif "満月まであと" in moon_phase:
+            moon_part = f"{moon_phase}の美しい夜空を見上げながら"
+        elif "今日が新月" in moon_phase:
             moon_part = "新月の静寂な夜空に心を落ち着かせ"
-        elif "三日月" in moon_phase:
-            moon_part = "美しい三日月の夜空を眺めながら"
-        elif "十三夜" in moon_phase:
-            moon_part = "風情ある十三夜の月明かりの下"
-        elif "二十六夜" in moon_phase:
-            moon_part = "夜明け前の静寂な二十六夜を感じながら"
+        elif "明日が新月" in moon_phase:
+            moon_part = "明日の新月に向けて心を整え"
+        elif "新月まであと" in moon_phase:
+            moon_part = f"{moon_phase}の夜空に思いを馳せ"
         else:
-            moon_part = f"{moon_phase}の夜空を見上げ"
+            moon_part = "美しい夜空を見上げながら"
         
         # 気圧部分
         if "低気圧" in pressure or "気圧の谷" in pressure:
