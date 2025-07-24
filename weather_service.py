@@ -271,7 +271,31 @@ class WeatherService:
             return None
     
     def generate_heartwarming_message(self, weather_info: WeatherInfo, target_date: date) -> str:
-        """心温まる丁寧語のメッセージを生成（Web検索情報を活用してバリエーション豊富に）"""
+        """RAGシステムを使用して科学的根拠に基づくメッセージを生成"""
+        try:
+            # RAGシステムを使用してメッセージを生成
+            from health_knowledge_rag import HealthKnowledgeRAG
+            
+            rag_system = HealthKnowledgeRAG()
+            rag_message = rag_system.generate_evidence_based_message(weather_info, target_date)
+            
+            # RAGメッセージが生成できた場合はそれを使用
+            if rag_message and len(rag_message.strip()) > 10:
+                st.info("✅ RAGシステムによるメッセージ生成完了")
+                return rag_message
+            else:
+                st.warning("RAGシステムが利用できないため、従来方式を使用")
+                return self._generate_legacy_message(weather_info, target_date)
+            
+        except ImportError:
+            st.warning("RAGシステムが利用できないため、従来方式を使用")
+            return self._generate_legacy_message(weather_info, target_date)
+        except Exception as e:
+            st.warning(f"RAGメッセージ生成に失敗、従来方式にフォールバック: {e}")
+            return self._generate_legacy_message(weather_info, target_date)
+    
+    def _generate_legacy_message(self, weather_info: WeatherInfo, target_date: date) -> str:
+        """従来のWeb検索ベース方式でメッセージを生成（フォールバック用）"""
         try:
             formatted_date = f"{target_date.month}月{target_date.day}日" + DateUtils.get_japanese_weekday(target_date)
             weekday = DateUtils.get_japanese_weekday_full(target_date)
@@ -293,7 +317,7 @@ class WeatherService:
             return message
             
         except Exception as e:
-            st.warning(f"心温まるメッセージの生成に失敗しました: {e}")
+            st.warning(f"従来方式のメッセージ生成に失敗しました: {e}")
             # 天気情報に基づいたフォールバックメッセージを生成
             return self._generate_fallback_message(weather_info)
     
