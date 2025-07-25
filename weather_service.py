@@ -158,6 +158,18 @@ class WeatherService:
         # 満月は約14.75日（29.5/2）
         # 新月は0日または29.5日
         
+        # 新月・満月当日の判定（許容範囲を設定）
+        new_moon_threshold = 0.5  # 新月前後0.5日以内
+        full_moon_threshold = 0.5  # 満月前後0.5日以内
+        
+        # 新月当日の判定
+        if age <= new_moon_threshold or age >= (29.5 - new_moon_threshold):
+            return "今日が新月"
+        
+        # 満月当日の判定
+        if abs(age - 14.75) <= full_moon_threshold:
+            return "今日が満月"
+        
         # 次の新月までの日数
         if age <= 14.75:  # 新月→満月の期間
             days_to_new_moon = 29.5 - age
