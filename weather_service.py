@@ -158,30 +158,41 @@ class WeatherService:
         # 満月は約14.75日（29.5/2）
         # 新月は0日または29.5日
         
-        # 新月・満月当日の判定（許容範囲を設定）
-        new_moon_threshold = 0.5  # 新月前後0.5日以内
-        full_moon_threshold = 0.5  # 満月前後0.5日以内
+        # 新月・満月当日の判定（より厳密に）
+        new_moon_threshold = 1.0  # 新月前後1日以内
+        full_moon_threshold = 1.0  # 満月前後1日以内
         
-        # 新月当日の判定
-        if age <= new_moon_threshold or age >= (29.5 - new_moon_threshold):
+        # 新月・満月との距離を計算
+        new_moon_distance = min(age, 29.5 - age)
+        full_moon_distance = abs(age - 14.75)
+        
+        # 新月当日の判定（月齢0付近または29.5付近）
+        if new_moon_distance <= new_moon_threshold:
             return "今日が新月"
         
-        # 満月当日の判定
-        if abs(age - 14.75) <= full_moon_threshold:
+        # 満月当日の判定（月齢14.75付近）
+        if full_moon_distance <= full_moon_threshold:
             return "今日が満月"
         
-        # 次の新月までの日数
-        if age <= 14.75:  # 新月→満月の期間
+        # 次の新月・満月までの日数を計算
+        # 新月までの日数を正確に計算
+        if age <= 14.75:
+            # 新月→満月の期間：次の新月は29.5日後
             days_to_new_moon = 29.5 - age
+        else:
+            # 満月→新月の期間：次の新月は29.5-ageで計算
+            days_to_new_moon = 29.5 - age
+        
+        # 満月までの日数
+        if age < 14.75:
             days_to_full_moon = 14.75 - age
-        else:  # 満月→新月の期間
-            days_to_new_moon = 29.5 - age
+        else:
             days_to_full_moon = 14.75 + (29.5 - age)
         
         # より近い方を選択
         if days_to_new_moon <= days_to_full_moon:
             days = int(round(days_to_new_moon))
-            if days == 0:
+            if days <= 0:
                 return "今日が新月"
             elif days == 1:
                 return "明日が新月"
@@ -189,7 +200,7 @@ class WeatherService:
                 return f"新月まであと{days}日"
         else:
             days = int(round(days_to_full_moon))
-            if days == 0:
+            if days <= 0:
                 return "今日が満月"
             elif days == 1:
                 return "明日が満月"
