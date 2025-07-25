@@ -182,7 +182,8 @@ class HealthKnowledgeRAG:
             
             message = self._construct_final_message(
                 formatted_date, weather_info.快適具合, pressure_content, 
-                lunar_content, practical_advice, rain_advice, perspective
+                lunar_content, practical_advice, rain_advice, perspective,
+                weather_info.気圧状況, weather_info.月齢
             )
             
             return message
@@ -323,31 +324,72 @@ class HealthKnowledgeRAG:
     def _construct_final_message(self, formatted_date: str, comfort_level: str,
                                pressure_content: str, lunar_content: str, 
                                practical_advice: str, rain_advice: str, 
-                               perspective: str) -> str:
+                               perspective: str, pressure_status: str, moon_phase: str) -> str:
         """最終メッセージを構築"""
         
-        # 快適具合による導入
-        comfort_intro = f"本日は{comfort_level}一日となる予想です。"
+        # 冒頭で気圧配置と月齢を明示
+        pressure_moon_intro = self._create_pressure_moon_introduction(pressure_status, moon_phase)
         
         # メッセージ要素を統合
-        message_parts = [comfort_intro]
+        message_parts = [pressure_moon_intro]
         
-        if pressure_content:
-            message_parts.append(pressure_content)
+        # 体調への影響を説明
+        if pressure_content or lunar_content:
+            impact_parts = []
+            if pressure_content:
+                impact_parts.append(pressure_content)
+            if lunar_content:
+                impact_parts.append(lunar_content)
+            message_parts.append(" ".join(impact_parts))
             
-        if lunar_content:
-            message_parts.append(lunar_content)
-            
+        # 具体的なアドバイス
         if practical_advice:
             message_parts.append(practical_advice)
             
+        # 雨具のアドバイス
         if rain_advice:
             message_parts.append(rain_advice)
             
-        # 締めくくり
+        # 温かい労いの言葉で締めくくり
         message_parts.append("受験生の皆様も保護者の方々も、どうぞお体を大切にお過ごしください。")
         
         return "".join(message_parts)
+    
+    def _create_pressure_moon_introduction(self, pressure_status: str, moon_phase: str) -> str:
+        """気圧配置と月齢を明示する冒頭部分を作成"""
+        
+        # 気圧状況の表現を調整
+        if "高気圧" in pressure_status:
+            if "気圧の谷" in pressure_status:
+                pressure_desc = "高気圧圏内ですが気圧の谷の影響を受け"
+            else:
+                pressure_desc = "高気圧に覆われ"
+        elif "低気圧" in pressure_status:
+            pressure_desc = "低気圧の影響を受け"
+        elif "気圧の谷" in pressure_status:
+            pressure_desc = "気圧の谷の影響で"
+        elif "前線" in pressure_status:
+            pressure_desc = "前線の影響により"
+        else:
+            pressure_desc = "穏やかな気圧配置の中"
+        
+        # 月齢の表現を調整
+        if "今日が新月" in moon_phase:
+            moon_desc = "今夜は新月の静寂な夜空"
+        elif "今日が満月" in moon_phase:
+            moon_desc = "今夜は満月の美しい光に包まれた夜空"
+        elif "明日が新月" in moon_phase:
+            moon_desc = "明日の新月を迎える夜空"
+        elif "明日が満月" in moon_phase:
+            moon_desc = "明日の満月を前にした夜空"
+        elif "新月まであと" in moon_phase:
+            moon_desc = f"{moon_phase}の夜空"
+        elif "満月まであと" in moon_phase:
+            moon_desc = f"{moon_phase}の夜空"
+        else:
+            moon_desc = "美しい夜空"
+        
+        return f"今日は{pressure_desc}、{moon_desc}となります。"
     
     def _generate_fallback_message(self, weather_info: WeatherInfo) -> str:
         """フォールバックメッセージを生成"""
