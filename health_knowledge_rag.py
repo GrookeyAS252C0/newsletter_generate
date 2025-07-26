@@ -319,7 +319,7 @@ class HealthKnowledgeRAG:
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "あなたは受験生・保護者向けの健康アドバイザーです。月齢の影響について、科学的根拠の限界を明記しつつ、実用的で優しいアドバイスを生成してください。"},
+                    {"role": "system", "content": "あなたは受験生・保護者に寄り添う健康サポーターです。月齢の影響について、科学的根拠の限界を明記しつつ、上から目線にならず優しく丁寧な口調でアドバイスしてください。体調を気遣う温かい言葉を使い、「頑張って」のような言葉は避けてください。"},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=300,
@@ -350,7 +350,8 @@ class HealthKnowledgeRAG:
 - 80文字以内の簡潔なアドバイス
 - 「参考程度ですが」等で科学的根拠の限界を明記
 - 受験生の体調・睡眠への配慮
-- 優しく励ます口調
+- 優しく丁寧で寄り添う口調
+- 「頑張って」ではなく体調を気遣う温かい言葉
 
 【出力形式】
 月齢の特性に基づいた短いアドバイス文を生成してください。"""
@@ -365,11 +366,11 @@ class HealthKnowledgeRAG:
         phase_text = lunar_analysis.get("phase_text", "")
         
         if "新月" in phase_text:
-            return "新月の時期です。参考程度ですが、心身のリセットに良いタイミングとされています。十分な休息を心がけ、新しい学習サイクルに向けて準備しましょう。"
+            return "新月の時期ですね。参考程度ですが、心身のリセットに良いタイミングとされています。十分な休息を取られて、新しいペースで過ごされるのはいかがでしょうか。"
         elif "満月" in phase_text:
-            return "満月の時期です。一部の研究では睡眠に影響があるとも言われています。就寝環境を整え、リラックスして過ごすことをおすすめします。"
+            return "満月の時期ですね。一部の研究では睡眠に影響があるとも言われています。就寝環境を整え、ゆったりとお過ごしいただければと思います。"
         else:
-            return "月の満ち欠けの時期です。参考程度ですが、自然のリズムに合わせて生活を整えることで、学習効率の向上が期待できるかもしれません。"
+            return "月の満ち欠けの時期ですね。参考程度ですが、自然のリズムに合わせて生活を整えることで、穏やかにお過ごしいただけるかもしれません。"
     
     def get_integration_guidelines(self) -> Dict[str, Any]:
         """統合ガイドラインを取得"""
@@ -680,7 +681,7 @@ class HealthKnowledgeRAG:
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "あなたは受験生・保護者向けの健康アドバイザーです。気圧と月齢の影響を統合した、コンパクトで実用的なアドバイスを生成してください。重複を避け、自然で読みやすい文章にしてください。"},
+                    {"role": "system", "content": "あなたは受験生・保護者に寄り添う健康サポーターです。上から目線にならず、優しく丁寧な口調で、気圧と月齢の影響を統合したアドバイスを生成してください。「頑張って」のような励ましではなく、体調を気遣う温かい言葉を使ってください。"},
                     {"role": "user", "content": integration_prompt}
                 ],
                 max_tokens=200,
@@ -718,7 +719,8 @@ class HealthKnowledgeRAG:
 - 120文字以内のコンパクトなメッセージ
 - 重複する内容は統合する
 - 受験生と保護者両方への配慮
-- 優しく励ます口調
+- 優しく丁寧で寄り添う口調
+- 「頑張って」ではなく体調を気遣う温かい言葉
 - 気圧と月齢の影響を自然に組み合わせる
 
 【出力形式】
@@ -741,7 +743,7 @@ class HealthKnowledgeRAG:
             base_message += lunar_comment
         
         # 簡潔な締めくくり
-        base_message += "体調を大切に、無理をせずに頑張りましょう。"
+        base_message += "どうぞお体を大切にお過ごしください。"
         
         return base_message
     
