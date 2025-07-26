@@ -304,12 +304,22 @@ class WeatherService:
             
             rag_system = HealthKnowledgeRAG(openai_client=self.client)
             
-            # 受験生向けの新しいメッセージ生成を試行（月齢数値も渡す）
+            # Phase 2: 学校紹介統合メッセージ生成を試行
+            try:
+                moon_age = getattr(self, 'latest_moon_age', None)
+                school_intro_message = rag_system.generate_school_intro_message(weather_info, moon_age)
+                if school_intro_message and len(school_intro_message.strip()) > 10:
+                    st.info("✅ 学校紹介統合メッセージ生成完了（Phase 2）")
+                    return school_intro_message
+            except Exception as e:
+                st.warning(f"学校紹介統合メッセージ生成失敗: {e}")
+            
+            # フォールバック: 受験生向けの健康アドバイスのみ
             try:
                 moon_age = getattr(self, 'latest_moon_age', None)
                 student_message = rag_system.generate_student_focused_message(weather_info, moon_age)
                 if student_message and len(student_message.strip()) > 10:
-                    st.info("✅ 受験生向けLLM月齢メッセージ生成完了")
+                    st.info("✅ 受験生向け健康アドバイス生成完了（Phase 1）")
                     return student_message
             except Exception as e:
                 st.warning(f"受験生向けメッセージ生成失敗: {e}")

@@ -41,6 +41,10 @@ class HealthKnowledgeRAG:
         self.pressure_data = self._load_specialized_data("pressure_impact_data.json")
         self.lunar_data = self._load_specialized_data("lunar_impact_data.json")
         
+        # 学校紹介機能のための設定
+        self.school_intro_history = []  # 過去の学校紹介テーマ履歴
+        self.max_history_length = 7  # 1週間分の履歴を保持
+        
     def _load_knowledge_base(self) -> Dict[str, Any]:
         """知識ベースをJSONファイルから読み込み"""
         try:
@@ -747,6 +751,109 @@ class HealthKnowledgeRAG:
         
         return base_message
     
+    def _get_school_context(self) -> str:
+        """日本大学第一中学・高等学校の基本情報を取得"""
+        return """
+あなたは日本大学第一中学・高等学校のメルマガ担当です。以下の学校情報を活用してください：
+
+【学校概要】
+- 名称: 日本大学第一中学・高等学校（日大一中・日大一高）
+- 所在地: 東京都墨田区横網（両国地区）
+- アクセス: 総武線・大江戸線駅近、A1出口からすぐの好立地
+- 生徒数: 中学605名（各学年200名）、高校1042名（1学年350名）
+- 共学校: 男女比 男子6：女子4（最近は女子比率上昇傾向）
+
+【通学圏・特色】
+- 中学: 東京76.5%、千葉17%（通学時間45-50分が8割）
+- 高校: 東京6割、千葉3割超（通学時間60分が主要層）
+- 下町エリア（江東・江戸川・墨田・葛飾・台東・荒川）から多数通学
+- 駐輪場なしのため電車通学中心
+
+【教育システム】
+- 6年一貫教育（中学→高校進学は成績基準あり、約90-95%が内部進学）
+- 基礎期（中1-2）: 生活習慣・学習習慣の定着を重視
+- 定着期（中3-高1）: 進路探求と多様な刺激による視野拡大
+- 入試期（高2-3）: 日大進学コースと難関私大コースに分化
+
+【進路実績】
+- 日本大学進学率: 70%超（付属校26校中でも日大志向が特に強い）
+- 日大内第一希望学部合格率: 80%超
+- 他大学進学: 上智・東京理科・学習院・法政等（指定校推薦あり）
+- 基礎学力到達度テスト: 学校授業+無料講習で塾なし対応可能
+
+【部活動・学校生活】
+- 部活動参加率: 中学66.6%、高校61.1%、全体63%
+- 校友会主任の理念: 「人生に必要なことを学ぶ場」
+- 答えが見えない中でも前向きに取り組む力を育成
+- 朝8:15-夕方18:00の充実した学校生活
+
+【入試情報】
+- 中学入試: 4回実施（4科2回・2科2回、計200名募集）
+- 高校入試: 単願推薦75名・一般入試75名（併願優遇なし）
+- 推薦基準: 5教科20以上、各学年欠席10日以内、通知表に1なし等
+
+【学校の雰囲気・特徴】
+- 日大進学を目標とした確実な学習サポート体制
+- 部活動と勉強の両立を重視
+- 面倒見の良い指導（提出物管理、小テスト再試験等）
+- 下町の温かい雰囲気と都心アクセスの良さを併せ持つ
+"""
+    
+    def _get_school_intro_themes(self) -> List[str]:
+        """学校紹介のテーマリストを取得"""
+        return [
+            "進学実績_日大進学率70%超の安心感",
+            "立地環境_両国駅近の好アクセス",
+            "部活動_人生に必要なことを学ぶ場",
+            "教育システム_6年一貫の手厚いサポート",
+            "学習環境_塾なし対応の無料講習",
+            "面倒見_提出物管理から進路相談まで",
+            "進路選択_日大進学と難関私大の両立",
+            "学校生活_朝8時15分から夕方6時の充実",
+            "入試制度_複数回受験チャンスあり",
+            "通学環境_下町エリアからの通いやすさ",
+            "校風_温かい雰囲気と都心利便性",
+            "サポート体制_基礎から応用まで段階的指導"
+        ]
+    
+    def _select_school_intro_theme(self, weather_context: str, lunar_context: str) -> str:
+        """天気・月齢・履歴を考慮して学校紹介テーマを選択"""
+        available_themes = self._get_school_intro_themes()
+        
+        # 過去1週間で使用したテーマを除外
+        recent_themes = [item.split('_')[0] for item in self.school_intro_history[-5:]]
+        unused_themes = [theme for theme in available_themes 
+                        if theme.split('_')[0] not in recent_themes]
+        
+        # 未使用テーマがない場合は全テーマから選択
+        if not unused_themes:
+            unused_themes = available_themes
+        
+        # 天気・月齢に応じた重み付け選択
+        if "雨" in weather_context or "低気圧" in weather_context:
+            # 屋内環境重視
+            preferred = [t for t in unused_themes if any(keyword in t for keyword in 
+                        ["学習環境", "面倒見", "サポート体制", "教育システム"])]
+        elif "高気圧" in weather_context or "晴" in weather_context:
+            # アクティブな要素重視
+            preferred = [t for t in unused_themes if any(keyword in t for keyword in 
+                        ["部活動", "立地環境", "学校生活", "校風"])]
+        else:
+            preferred = unused_themes
+        
+        # 選択肢がない場合は全未使用テーマから
+        if not preferred:
+            preferred = unused_themes
+        
+        selected_theme = random.choice(preferred)
+        
+        # 履歴に追加
+        self.school_intro_history.append(selected_theme)
+        if len(self.school_intro_history) > self.max_history_length:
+            self.school_intro_history.pop(0)
+        
+        return selected_theme
+    
     def _integrate_student_advice(self, pressure_advice: Dict[str, Any], lunar_advice: Dict[str, Any]) -> str:
         """気圧と月齢のアドバイスを統合して受験生向けメッセージを生成"""
         message_parts = []
@@ -853,6 +960,76 @@ class HealthKnowledgeRAG:
             return f"{lunar_encouragement}。{random.choice(conclusion_options)}"
         else:
             return random.choice(conclusion_options)
+    
+    def generate_school_intro_message(self, weather_info: WeatherInfo, moon_age: Optional[float] = None) -> str:
+        """健康アドバイス + 学校紹介の統合メッセージを生成"""
+        if not self.openai_client:
+            return self.generate_student_focused_message(weather_info, moon_age)
+        
+        try:
+            # Phase 1: 健康アドバイス生成
+            health_message = self.generate_student_focused_message(weather_info, moon_age)
+            
+            # Phase 2: 学校紹介テーマ選択
+            school_theme = self._select_school_intro_theme(
+                weather_info.気圧状況, 
+                weather_info.月齢
+            )
+            
+            # Phase 2: 統合メッセージ生成
+            integration_prompt = self._create_school_integration_prompt(
+                health_message, school_theme, weather_info
+            )
+            
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": self._get_school_context()},
+                    {"role": "user", "content": integration_prompt}
+                ],
+                max_tokens=300,
+                temperature=0.7
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            st.warning(f"学校紹介統合メッセージ生成エラー: {e}")
+            return self.generate_student_focused_message(weather_info, moon_age)
+    
+    def _create_school_integration_prompt(self, health_message: str, school_theme: str, weather_info: WeatherInfo) -> str:
+        """学校紹介統合用のプロンプトを作成"""
+        theme_parts = school_theme.split('_')
+        theme_key = theme_parts[0] if theme_parts else school_theme
+        theme_description = theme_parts[1] if len(theme_parts) > 1 else ""
+        
+        return f"""今日のメルマガに健康アドバイスと学校紹介を自然に組み合わせたメッセージを作成してください。
+
+【今日の健康アドバイス】
+{health_message}
+
+【今日の学校紹介テーマ】
+テーマ: {theme_key}
+説明: {theme_description}
+
+【天気・気圧状況】
+- 快適具合: {weather_info.快適具合}
+- 気圧状況: {weather_info.気圧状況}
+- 月齢: {weather_info.月齢}
+
+【要件】
+1. 健康アドバイスを最初に配置
+2. 学校紹介を自然に接続（「ところで」「そういえば」等の接続語使用）
+3. 選択したテーマに基づく学校の魅力を1-2文で紹介
+4. 全体で200-250文字程度
+5. 初見読者にも継続読者にも価値のある内容
+6. 受験生・保護者両方に寄り添う温かい口調
+7. 最後は学校への関心喚起で締めくくり
+
+【出力形式】
+統合されたメルマガ本文を生成してください。"""
+        
+        return prompt
 
 
 class MessageVariationManager:
