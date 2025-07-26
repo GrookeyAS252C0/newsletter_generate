@@ -339,23 +339,21 @@ class HealthKnowledgeRAG:
         primary_influence = lunar_analysis.get("primary_influence", "")
         influence_strength = lunar_analysis.get("influence_strength", "mild")
         
-        prompt = f"""受験生・保護者向けの月齢アドバイスを生成してください。
+        prompt = f"""受験生・保護者向けの簡潔な月齢アドバイスを生成してください。
 
 【月齢情報】
 - 現在の月齢: {moon_age:.1f}日
 - 時期: {phase_desc}
 - 主要影響: {primary_influence}
-- 影響強度: {influence_strength}
-- 表示文: {lunar_analysis.get('phase_text', '')}
 
 【要件】
-- 科学的根拠が限定的であることを明記（「参考程度ですが」「一部の研究では」等）
-- 受験生の睡眠・集中力・体調への配慮
-- 保護者向けのサポート提案
-- 優しく励ます口調で150文字程度
+- 80文字以内の簡潔なアドバイス
+- 「参考程度ですが」等で科学的根拠の限界を明記
+- 受験生の体調・睡眠への配慮
+- 優しく励ます口調
 
 【出力形式】
-月齢の特性に基づいた自然で実用的なアドバイス文を生成してください。"""
+月齢の特性に基づいた短いアドバイス文を生成してください。"""
 
         if pressure_context:
             prompt += f"\n\n【気圧情報】\n{pressure_context.get('status', '')}の影響も考慮してください。"
@@ -661,42 +659,91 @@ class HealthKnowledgeRAG:
             return self._generate_fallback_message(weather_info)
     
     def _integrate_llm_student_advice(self, pressure_advice: Dict[str, Any], lunar_comment: str, lunar_analysis: Dict[str, Any]) -> str:
-        """気圧アドバイスとLLM生成月齢コメントを統合"""
-        message_parts = []
+        """気圧アドバイスとLLM生成月齢コメントを統合（コンパクト版）"""
+        try:
+            # コンパクトな統合メッセージを生成
+            return self._generate_compact_integrated_message(pressure_advice, lunar_comment, lunar_analysis)
+            
+        except Exception as e:
+            st.warning(f"統合メッセージ生成エラー: {e}")
+            return self._generate_simple_fallback_message(pressure_advice, lunar_comment)
+    
+    def _generate_compact_integrated_message(self, pressure_advice: Dict[str, Any], lunar_comment: str, lunar_analysis: Dict[str, Any]) -> str:
+        """コンパクトで一貫性のある統合メッセージを生成"""
+        if not self.openai_client:
+            return self._generate_simple_fallback_message(pressure_advice, lunar_comment)
         
-        # 1. 冒頭：気圧状況の説明
+        try:
+            # 気圧と月齢の情報を統合したプロンプトを作成
+            integration_prompt = self._create_integration_prompt(pressure_advice, lunar_comment, lunar_analysis)
+            
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "あなたは受験生・保護者向けの健康アドバイザーです。気圧と月齢の影響を統合した、コンパクトで実用的なアドバイスを生成してください。重複を避け、自然で読みやすい文章にしてください。"},
+                    {"role": "user", "content": integration_prompt}
+                ],
+                max_tokens=200,
+                temperature=0.6
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            st.warning(f"LLM統合メッセージ生成エラー: {e}")
+            return self._generate_simple_fallback_message(pressure_advice, lunar_comment)
+    
+    def _create_integration_prompt(self, pressure_advice: Dict[str, Any], lunar_comment: str, lunar_analysis: Dict[str, Any]) -> str:
+        """統合メッセージ用のプロンプトを作成"""
+        pressure_status = pressure_advice.get("tone_elements", {}).get("caring_expression", "")
+        pressure_impact = pressure_advice.get("student_advice", {}).get("immediate_actions", "")
+        pressure_study = pressure_advice.get("student_advice", {}).get("study_adjustments", "")
+        
+        moon_age = lunar_analysis.get("moon_age", 0)
+        phase_desc = lunar_analysis.get("phase_description", "")
+        
+        prompt = f"""気圧と月齢の情報を統合して、受験生・保護者向けのコンパクトなアドバイスを生成してください。
+
+【気圧情報】
+- 状況: {pressure_status}
+- 体調への影響: {pressure_impact}
+- 学習への影響: {pressure_study}
+
+【月齢情報】
+- 月齢: {moon_age:.1f}日
+- 時期: {phase_desc}
+- LLMコメント: {lunar_comment}
+
+【要件】
+- 120文字以内のコンパクトなメッセージ
+- 重複する内容は統合する
+- 受験生と保護者両方への配慮
+- 優しく励ます口調
+- 気圧と月齢の影響を自然に組み合わせる
+
+【出力形式】
+統合された一つの自然なアドバイス文を生成してください。"""
+        
+        return prompt
+    
+    def _generate_simple_fallback_message(self, pressure_advice: Dict[str, Any], lunar_comment: str) -> str:
+        """シンプルなフォールバックメッセージを生成"""
         pressure_tone = pressure_advice.get("tone_elements", {}).get("caring_expression", "")
+        
+        # 基本的な気圧メッセージ
         if pressure_tone:
-            message_parts.append(f"{pressure_tone}。")
+            base_message = f"{pressure_tone}。"
+        else:
+            base_message = "今日も受験勉強お疲れ様です。"
         
-        # 2. 気圧による体調への影響と対策
-        pressure_student = pressure_advice.get("student_advice", {})
-        if pressure_student.get("immediate_actions"):
-            message_parts.append(f"体調面では、{pressure_student['immediate_actions']}ことが大切です。")
+        # 月齢コメントがあれば追加（短縮）
+        if lunar_comment and len(lunar_comment) < 100:
+            base_message += lunar_comment
         
-        # 3. LLM生成の月齢コメント
-        if lunar_comment:
-            message_parts.append(lunar_comment)
+        # 簡潔な締めくくり
+        base_message += "体調を大切に、無理をせずに頑張りましょう。"
         
-        # 4. 気圧による学習面のアドバイス
-        pressure_study = pressure_student.get("study_adjustments", "")
-        if pressure_study:
-            message_parts.append(f"勉強面では、{pressure_study}ことをおすすめします。")
-        
-        # 5. 保護者向けのサポート提案
-        pressure_parent = pressure_advice.get("parent_guidance", {})
-        if pressure_parent.get("observation_points"):
-            message_parts.append(f"保護者の方は、{pressure_parent['observation_points']}などにご注意ください。")
-        
-        # 6. 締めくくり
-        conclusion_options = [
-            "受験は長い道のりですが、体調を第一に、一歩ずつ着実に進んでいきましょう。",
-            "無理をせず、お体を大切にしながら目標に向かって頑張ってください。",
-            "皆様が健康で充実した日々を送られることを心より願っております。"
-        ]
-        message_parts.append(random.choice(conclusion_options))
-        
-        return "".join(message_parts)
+        return base_message
     
     def _integrate_student_advice(self, pressure_advice: Dict[str, Any], lunar_advice: Dict[str, Any]) -> str:
         """気圧と月齢のアドバイスを統合して受験生向けメッセージを生成"""
