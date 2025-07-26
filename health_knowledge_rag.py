@@ -8,6 +8,7 @@ import os
 import random
 from typing import Dict, List, Any, Optional
 from datetime import date
+import openai
 
 try:
     import streamlit as st
@@ -24,15 +25,17 @@ from config import WeatherInfo
 class HealthKnowledgeRAG:
     """Deep Research結果を活用した健康知識RAGシステム"""
     
-    def __init__(self, knowledge_json_path: str = "condition_clean.json"):
+    def __init__(self, knowledge_json_path: str = "condition_clean.json", openai_client = None):
         """
         RAGシステムを初期化
         
         Args:
             knowledge_json_path: Deep Research結果のJSONファイルパス
+            openai_client: OpenAI APIクライアント（LLM月齢コメント生成用）
         """
         self.knowledge_path = knowledge_json_path
         self.knowledge_base = self._load_knowledge_base()
+        self.openai_client = openai_client
         
         # 新しい気圧・月齢影響データを読み込み
         self.pressure_data = self._load_specialized_data("pressure_impact_data.json")
@@ -204,6 +207,171 @@ class HealthKnowledgeRAG:
         except Exception as e:
             st.warning(f"専用月齢アドバイス取得エラー: {e}")
             return self.get_lunar_advice(lunar_phase)
+    
+    def get_precise_lunar_data(self, lunar_phase_text: str, moon_age: Optional[float] = None) -> Dict[str, Any]:
+        """月齢数値と説明文から正確な月相を判定"""
+        if moon_age is None:
+            # 月齢数値が取得できない場合は従来の判定
+            return {"use_traditional": True, "phase_text": lunar_phase_text}
+        
+        try:
+            # 月齢を0-29.5の範囲に正規化
+            normalized_age = moon_age % 29.5
+            
+            # 主影響と副影響を判定
+            primary_influence = self._determine_primary_influence(normalized_age)
+            secondary_influence = self._determine_secondary_influence(normalized_age)
+            influence_strength = self._calculate_influence_strength(normalized_age)
+            
+            return {
+                "moon_age": normalized_age,
+                "phase_text": lunar_phase_text,
+                "primary_influence": primary_influence,
+                "secondary_influence": secondary_influence,
+                "influence_strength": influence_strength,
+                "phase_description": self._get_detailed_phase_description(normalized_age),
+                "use_traditional": False
+            }
+            
+        except Exception as e:
+            st.warning(f"月齢解析エラー: {e}")
+            return {"use_traditional": True, "phase_text": lunar_phase_text}
+    
+    def _determine_primary_influence(self, moon_age: float) -> str:
+        """月齢から主要な影響を判定"""
+        if moon_age <= 3.0:
+            return "new_moon"  # 新月期: リセット・回復
+        elif moon_age <= 7.0:
+            return "waxing_crescent"  # 三日月期: エネルギー上昇開始
+        elif moon_age <= 11.0:
+            return "waxing_moon"  # 上弦期: 成長・集中力向上
+        elif moon_age <= 17.0:
+            return "full_moon"  # 満月期: 興奮・睡眠注意
+        elif moon_age <= 22.0:
+            return "waning_moon"  # 下弦期: 調整・振り返り
+        else:
+            return "waning_crescent"  # 晦期: 新月準備・デトックス
+    
+    def _determine_secondary_influence(self, moon_age: float) -> Optional[str]:
+        """月齢から副次的な影響を判定（境界期間）"""
+        # 各期間の境界±1日は副影響も考慮
+        if 2.0 <= moon_age <= 4.0:
+            return "new_moon_transition"
+        elif 6.0 <= moon_age <= 8.0:
+            return "waxing_transition"
+        elif 10.0 <= moon_age <= 12.0:
+            return "first_quarter_transition"
+        elif 16.0 <= moon_age <= 18.0:
+            return "full_moon_transition"
+        elif 21.0 <= moon_age <= 23.0:
+            return "last_quarter_transition"
+        elif 26.0 <= moon_age <= 28.0:
+            return "new_moon_approach"
+        return None
+    
+    def _calculate_influence_strength(self, moon_age: float) -> str:
+        """影響の強度を計算"""
+        # 新月・満月に近いほど影響が強い
+        new_moon_distance = min(moon_age, 29.5 - moon_age)
+        full_moon_distance = abs(moon_age - 14.75)
+        
+        min_distance = min(new_moon_distance, full_moon_distance)
+        
+        if min_distance <= 1.0:
+            return "strong"  # 強い影響
+        elif min_distance <= 2.5:
+            return "moderate"  # 中程度の影響
+        else:
+            return "mild"  # 軽微な影響
+    
+    def _get_detailed_phase_description(self, moon_age: float) -> str:
+        """詳細な月相説明を生成"""
+        if moon_age <= 1.0:
+            return "新月直後の静寂な時期"
+        elif moon_age <= 3.0:
+            return "新月期の回復・リセット時期"
+        elif moon_age <= 7.0:
+            return "三日月期のエネルギー上昇時期"
+        elif moon_age <= 11.0:
+            return "上弦期の成長・発展時期"
+        elif moon_age <= 13.0:
+            return "満月に向かう活性化時期"
+        elif moon_age <= 16.0:
+            return "満月期の高エネルギー時期"
+        elif moon_age <= 18.0:
+            return "満月後の調整開始時期"
+        elif moon_age <= 22.0:
+            return "下弦期の整理・振り返り時期"
+        elif moon_age <= 26.0:
+            return "月末期の準備・デトックス時期"
+        else:
+            return "新月に向かう準備完了時期"
+    
+    def generate_llm_lunar_comment(self, lunar_analysis: Dict[str, Any], pressure_context: Dict[str, Any] = None) -> str:
+        """LLMを使って月齢に応じた柔軟なコメントを生成"""
+        if not self.openai_client or lunar_analysis.get("use_traditional", False):
+            # LLMが利用できない場合は従来の方法
+            return self._generate_traditional_lunar_comment(lunar_analysis)
+        
+        try:
+            prompt = self._create_lunar_llm_prompt(lunar_analysis, pressure_context)
+            
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "あなたは受験生・保護者向けの健康アドバイザーです。月齢の影響について、科学的根拠の限界を明記しつつ、実用的で優しいアドバイスを生成してください。"},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=300,
+                temperature=0.7
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            st.warning(f"LLM月齢コメント生成エラー: {e}")
+            return self._generate_traditional_lunar_comment(lunar_analysis)
+    
+    def _create_lunar_llm_prompt(self, lunar_analysis: Dict[str, Any], pressure_context: Dict[str, Any] = None) -> str:
+        """LLM用の月齢プロンプトを作成"""
+        moon_age = lunar_analysis.get("moon_age", 0)
+        phase_desc = lunar_analysis.get("phase_description", "")
+        primary_influence = lunar_analysis.get("primary_influence", "")
+        influence_strength = lunar_analysis.get("influence_strength", "mild")
+        
+        prompt = f"""受験生・保護者向けの月齢アドバイスを生成してください。
+
+【月齢情報】
+- 現在の月齢: {moon_age:.1f}日
+- 時期: {phase_desc}
+- 主要影響: {primary_influence}
+- 影響強度: {influence_strength}
+- 表示文: {lunar_analysis.get('phase_text', '')}
+
+【要件】
+- 科学的根拠が限定的であることを明記（「参考程度ですが」「一部の研究では」等）
+- 受験生の睡眠・集中力・体調への配慮
+- 保護者向けのサポート提案
+- 優しく励ます口調で150文字程度
+
+【出力形式】
+月齢の特性に基づいた自然で実用的なアドバイス文を生成してください。"""
+
+        if pressure_context:
+            prompt += f"\n\n【気圧情報】\n{pressure_context.get('status', '')}の影響も考慮してください。"
+        
+        return prompt
+    
+    def _generate_traditional_lunar_comment(self, lunar_analysis: Dict[str, Any]) -> str:
+        """従来の方法で月齢コメントを生成（フォールバック）"""
+        phase_text = lunar_analysis.get("phase_text", "")
+        
+        if "新月" in phase_text:
+            return "新月の時期です。参考程度ですが、心身のリセットに良いタイミングとされています。十分な休息を心がけ、新しい学習サイクルに向けて準備しましょう。"
+        elif "満月" in phase_text:
+            return "満月の時期です。一部の研究では睡眠に影響があるとも言われています。就寝環境を整え、リラックスして過ごすことをおすすめします。"
+        else:
+            return "月の満ち欠けの時期です。参考程度ですが、自然のリズムに合わせて生活を整えることで、学習効率の向上が期待できるかもしれません。"
     
     def get_integration_guidelines(self) -> Dict[str, Any]:
         """統合ガイドラインを取得"""
@@ -466,19 +634,69 @@ class HealthKnowledgeRAG:
         """フォールバックメッセージを生成"""
         return f"本日は{weather_info.快適具合}一日となる予想です。{weather_info.月齢}の時期で{weather_info.気圧状況}の影響もございますので、体調管理にお気をつけください。"
     
-    def generate_student_focused_message(self, weather_info: WeatherInfo) -> str:
-        """受験生・保護者向けの配慮深いメッセージを生成"""
+    def generate_student_focused_message(self, weather_info: WeatherInfo, moon_age: Optional[float] = None) -> str:
+        """受験生・保護者向けの配慮深いメッセージを生成（LLM月齢対応）"""
         try:
-            # 新しい専用データからアドバイスを取得
+            # 気圧アドバイスを取得
             pressure_advice = self.get_specialized_pressure_advice(weather_info.気圧状況)
-            lunar_advice = self.get_specialized_lunar_advice(weather_info.月齢)
             
-            # メッセージを統合
-            return self._integrate_student_advice(pressure_advice, lunar_advice)
+            # 月齢の詳細解析を実行
+            lunar_analysis = self.get_precise_lunar_data(weather_info.月齢, moon_age)
+            
+            # LLMを使った柔軟な月齢コメント生成
+            if not lunar_analysis.get("use_traditional", False) and self.openai_client:
+                lunar_comment = self.generate_llm_lunar_comment(
+                    lunar_analysis, 
+                    {"status": weather_info.気圧状況}
+                )
+                # LLMコメントと気圧アドバイスを統合
+                return self._integrate_llm_student_advice(pressure_advice, lunar_comment, lunar_analysis)
+            else:
+                # 従来の方法
+                lunar_advice = self.get_specialized_lunar_advice(weather_info.月齢)
+                return self._integrate_student_advice(pressure_advice, lunar_advice)
             
         except Exception as e:
             st.warning(f"受験生向けメッセージ生成エラー: {e}")
             return self._generate_fallback_message(weather_info)
+    
+    def _integrate_llm_student_advice(self, pressure_advice: Dict[str, Any], lunar_comment: str, lunar_analysis: Dict[str, Any]) -> str:
+        """気圧アドバイスとLLM生成月齢コメントを統合"""
+        message_parts = []
+        
+        # 1. 冒頭：気圧状況の説明
+        pressure_tone = pressure_advice.get("tone_elements", {}).get("caring_expression", "")
+        if pressure_tone:
+            message_parts.append(f"{pressure_tone}。")
+        
+        # 2. 気圧による体調への影響と対策
+        pressure_student = pressure_advice.get("student_advice", {})
+        if pressure_student.get("immediate_actions"):
+            message_parts.append(f"体調面では、{pressure_student['immediate_actions']}ことが大切です。")
+        
+        # 3. LLM生成の月齢コメント
+        if lunar_comment:
+            message_parts.append(lunar_comment)
+        
+        # 4. 気圧による学習面のアドバイス
+        pressure_study = pressure_student.get("study_adjustments", "")
+        if pressure_study:
+            message_parts.append(f"勉強面では、{pressure_study}ことをおすすめします。")
+        
+        # 5. 保護者向けのサポート提案
+        pressure_parent = pressure_advice.get("parent_guidance", {})
+        if pressure_parent.get("observation_points"):
+            message_parts.append(f"保護者の方は、{pressure_parent['observation_points']}などにご注意ください。")
+        
+        # 6. 締めくくり
+        conclusion_options = [
+            "受験は長い道のりですが、体調を第一に、一歩ずつ着実に進んでいきましょう。",
+            "無理をせず、お体を大切にしながら目標に向かって頑張ってください。",
+            "皆様が健康で充実した日々を送られることを心より願っております。"
+        ]
+        message_parts.append(random.choice(conclusion_options))
+        
+        return "".join(message_parts)
     
     def _integrate_student_advice(self, pressure_advice: Dict[str, Any], lunar_advice: Dict[str, Any]) -> str:
         """気圧と月齢のアドバイスを統合して受験生向けメッセージを生成"""

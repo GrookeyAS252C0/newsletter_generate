@@ -53,6 +53,7 @@ class WeatherService:
     
     def __init__(self, openai_api_key: str):
         self.client = openai.OpenAI(api_key=openai_api_key)
+        self.latest_moon_age = None  # 最新の月齢数値を保存
     
     def get_moon_phase(self, target_date: date) -> str:
         """月齢情報を取得して月の状態を返す"""
@@ -72,6 +73,8 @@ class WeatherService:
             if data.get("status") == 200:
                 moon_age = data["result"]["age"]
                 days_info = self._calculate_days_to_next_phase(moon_age)
+                # 月齢数値も保存して後で使用できるようにする
+                self.latest_moon_age = moon_age
                 return days_info
             else:
                 st.warning("月齢情報の取得に失敗しました")
@@ -299,13 +302,14 @@ class WeatherService:
             # RAGシステムを使用してメッセージを生成
             from health_knowledge_rag import HealthKnowledgeRAG
             
-            rag_system = HealthKnowledgeRAG()
+            rag_system = HealthKnowledgeRAG(openai_client=self.client)
             
-            # 受験生向けの新しいメッセージ生成を試行
+            # 受験生向けの新しいメッセージ生成を試行（月齢数値も渡す）
             try:
-                student_message = rag_system.generate_student_focused_message(weather_info)
+                moon_age = getattr(self, 'latest_moon_age', None)
+                student_message = rag_system.generate_student_focused_message(weather_info, moon_age)
                 if student_message and len(student_message.strip()) > 10:
-                    st.info("✅ 受験生向けRAGメッセージ生成完了")
+                    st.info("✅ 受験生向けLLM月齢メッセージ生成完了")
                     return student_message
             except Exception as e:
                 st.warning(f"受験生向けメッセージ生成失敗: {e}")
