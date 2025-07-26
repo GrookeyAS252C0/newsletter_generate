@@ -1,0 +1,124 @@
+{
+  "lunar_phases": {
+    "new_moon": {
+      "impact_assessment": {
+        "severity_level": "軽度",
+        "evidence_strength": "低",
+        "target_symptoms": ["疲れやすさ", "エネルギー不足", "深い眠り", "リセット感"]
+      },
+      "traditional_knowledge": {
+        "chinese_medicine": "鎮静（陰）の力が強まり、身体は疲れやすく、たっぷりと睡眠を欲する",
+        "energy_pattern": "エネルギーと血が不足する状態になりやすい",
+        "optimal_activities": "デトックス、新しい習慣の開始、目標設定"
+      },
+      "student_advice": {
+        "immediate_actions": "十分な睡眠時間を確保、栄養価の高い食事を心がける",
+        "study_adjustments": "新しい学習計画の立案、復習より基礎固めに重点",
+        "self_care": "早めの就寝、瞑想やリラクゼーション、デジタルデトックス"
+      },
+      "parent_guidance": {
+        "observation_points": "普段より疲れやすそうな様子、長く眠りたがる傾向",
+        "support_methods": "睡眠環境を整える、栄養バランスの良い食事、無理なスケジュールは避ける",
+        "when_to_worry": "極度の疲労感が続く、日常生活に支障が出るレベルの無気力"
+      },
+      "tone_elements": {
+        "caring_expression": "今夜は新月で、心身をリセットするのに良いタイミングです",
+        "encouragement": "疲れを感じやすい時期ですが、新しいスタートを切る準備期間と考えましょう",
+        "reassurance": "ゆっくり休んで、次の学習サイクルに向けて英気を養ってください"
+      }
+    },
+    "waxing_moon": {
+      "impact_assessment": {
+        "severity_level": "軽度",
+        "evidence_strength": "低",
+        "target_symptoms": ["エネルギー上昇", "吸収力向上", "成長感", "前向き思考"]
+      },
+      "traditional_knowledge": {
+        "energy_pattern": "新月から満月に向かって、物事が成長・拡大する期間",
+        "absorption_theory": "栄養や影響を受けやすい「チャージ期間」",
+        "optimal_activities": "計画の推進、栄養蓄積、学習の積み重ね"
+      },
+      "student_advice": {
+        "immediate_actions": "積極的な学習に取り組む、新しい分野への挑戦",
+        "study_adjustments": "難易度を徐々に上げる、長期目標に向けた計画的学習",
+        "self_care": "バランスの取れた栄養摂取、適度な運動、成長を実感する記録をつける"
+      },
+      "parent_guidance": {
+        "observation_points": "やる気の向上、新しいことへの関心、集中力の高まり",
+        "support_methods": "学習機会を提供、栄養豊富な食事、成長を認める声かけ",
+        "when_to_worry": "過度に頑張りすぎている、無理なペースで進めている"
+      },
+      "tone_elements": {
+        "caring_expression": "月が満ちていく時期で、成長のエネルギーが高まっています",
+        "encouragement": "学習を積み重ねるのに良いタイミング。着実に進歩していきましょう",
+        "reassurance": "焦らず、月とともに徐々に力をつけていけば大丈夫です"
+      }
+    },
+    "full_moon": {
+      "impact_assessment": {
+        "severity_level": "中度",
+        "evidence_strength": "中",
+        "target_symptoms": ["興奮状態", "入眠困難", "睡眠時間短縮", "夢が多い", "情緒不安定"]
+      },
+      "scientific_research": {
+        "sleep_impact": "満月前の3〜5日間に就寝時刻が平均20分遅れ、総睡眠時間が短縮",
+        "brain_activity": "血液循環が頭部に引っ張られ、興奮状態が続きやすい",
+        "universal_effect": "人工光環境でも都市部の学生に同様の影響が確認"
+      },
+      "student_advice": {
+        "immediate_actions": "リラックス効果のある食材摂取、就寝前のスマホ使用を控える",
+        "study_adjustments": "重要な暗記作業は日中に済ませ、夜は軽めの復習に留める",
+        "self_care": "入浴でリラックス、アロマやハーブティー、瞑想や深呼吸"
+      },
+      "parent_guidance": {
+        "observation_points": "寝つきの悪さ、夜中の覚醒、朝の疲労感、イライラしやすさ",
+        "support_methods": "就寝環境を暗く静かに、カフェイン摂取を控える、心配しすぎない",
+        "when_to_worry": "数日続く不眠、日中の著しい集中力低下、情緒の著しい不安定"
+      },
+      "tone_elements": {
+        "caring_expression": "今夜は満月で、眠りが浅くなりやすい時期です",
+        "encouragement": "多くの人が経験することですから、あまり心配せずリラックスを心がけましょう",
+        "reassurance": "一時的な現象ですので、無理をせずゆったりとお過ごしください"
+      }
+    },
+    "waning_moon": {
+      "impact_assessment": {
+        "severity_level": "軽度",
+        "evidence_strength": "低",
+        "target_symptoms": ["心身の落ち着き", "調整期間", "回復モード", "整理整頓欲求"]
+      },
+      "traditional_knowledge": {
+        "energy_pattern": "満月から新月に向かい、余分なものを手放し調整する時期",
+        "recovery_focus": "前半の高まりから回復・休息モードに入る",
+        "optimal_activities": "ダイエット、解毒、整理整頓、振り返り"
+      },
+      "student_advice": {
+        "immediate_actions": "学習の振り返りと整理、不要な教材の整頓",
+        "study_adjustments": "復習中心、苦手分野の見直し、学習方法の調整",
+        "self_care": "マッサージ、湯治、十分な睡眠、ストレス解消"
+      },
+      "parent_guidance": {
+        "observation_points": "落ち着いた様子、整理整頓への関心、振り返りの態度",
+        "support_methods": "環境整備のサポート、リラックスできる空間作り、話を聞く時間",
+        "when_to_worry": "極度の内向性、やる気の著しい低下、孤立傾向"
+      },
+      "tone_elements": {
+        "caring_expression": "月が欠けていく時期で、心身を整える良いタイミングです",
+        "encouragement": "これまでの学習を振り返り、次への準備をする大切な期間ですね",
+        "reassurance": "ゆっくりと調整しながら、新月でのリセットに向けて準備していきましょう"
+      }
+    }
+  },
+  "evidence_considerations": {
+    "scientific_status": "一部の睡眠研究で影響が示唆されるが、結果は一貫せず、決定的ではない",
+    "individual_variations": "影響には大きな個人差があり、全く感じない人も多い",
+    "practical_approach": "科学的根拠は限定的だが、参考として生活リズム調整に活用",
+    "balanced_view": "過度に依存せず、他の健康管理要素と合わせて総合的に判断"
+  },
+  "integration_guidelines": {
+    "evidence_based_expression": "「研究では〜という報告もありますが」「参考程度に」といった前置きを使用",
+    "practical_focus": "神秘的な表現は避け、具体的で実用的なアドバイスに重点",
+    "individual_respect": "影響を感じない場合もあることを明記",
+    "holistic_approach": "月相だけでなく、気圧、季節、個人の体調と総合して判断"
+  }
+}

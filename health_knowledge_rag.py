@@ -34,6 +34,10 @@ class HealthKnowledgeRAG:
         self.knowledge_path = knowledge_json_path
         self.knowledge_base = self._load_knowledge_base()
         
+        # 新しい気圧・月齢影響データを読み込み
+        self.pressure_data = self._load_specialized_data("pressure_impact_data.json")
+        self.lunar_data = self._load_specialized_data("lunar_impact_data.json")
+        
     def _load_knowledge_base(self) -> Dict[str, Any]:
         """知識ベースをJSONファイルから読み込み"""
         try:
@@ -53,8 +57,27 @@ class HealthKnowledgeRAG:
             st.error(f"知識ベースの読み込みに失敗: {e}")
             return {}
     
+    def _load_specialized_data(self, file_path: str) -> Dict[str, Any]:
+        """専用の気圧・月齢データファイルを読み込み"""
+        try:
+            if not os.path.exists(file_path):
+                st.warning(f"専用データファイルが見つかりません: {file_path}")
+                return {}
+                
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                st.info(f"✅ 専用データ読み込み完了: {file_path}")
+                return data
+                
+        except json.JSONDecodeError as e:
+            st.error(f"専用データファイルの解析に失敗: {e}")
+            return {}
+        except Exception as e:
+            st.error(f"専用データの読み込みに失敗: {e}")
+            return {}
+    
     def get_pressure_advice(self, pressure_status: str) -> Dict[str, Any]:
-        """気圧状況に基づく体調管理アドバイスを取得"""
+        """気圧状況に基づく体調管理アドバイスを取得（既存メソッド）"""
         if not self.knowledge_base:
             return {}
             
@@ -90,6 +113,29 @@ class HealthKnowledgeRAG:
         except Exception as e:
             st.warning(f"気圧アドバイス取得エラー: {e}")
             return {}
+    
+    def get_specialized_pressure_advice(self, pressure_status: str) -> Dict[str, Any]:
+        """新しい専用データから気圧影響のアドバイスを取得"""
+        if not self.pressure_data:
+            return self.get_pressure_advice(pressure_status)  # フォールバック
+            
+        try:
+            conditions = self.pressure_data.get("pressure_conditions", {})
+            
+            # 気圧状況に応じたデータを取得
+            if "低気圧" in pressure_status:
+                return conditions.get("low_pressure", {})
+            elif "高気圧" in pressure_status:
+                return conditions.get("high_pressure", {})
+            elif "変化" in pressure_status or "谷" in pressure_status:
+                return conditions.get("pressure_change", {})
+            else:
+                # デフォルトは低気圧として扱う
+                return conditions.get("low_pressure", {})
+                
+        except Exception as e:
+            st.warning(f"専用気圧アドバイス取得エラー: {e}")
+            return self.get_pressure_advice(pressure_status)
     
     def get_lunar_advice(self, lunar_phase: str) -> Dict[str, Any]:
         """月齢に基づく体調管理アドバイスを取得"""
@@ -133,6 +179,31 @@ class HealthKnowledgeRAG:
         except Exception as e:
             st.warning(f"月齢アドバイス取得エラー: {e}")
             return {}
+    
+    def get_specialized_lunar_advice(self, lunar_phase: str) -> Dict[str, Any]:
+        """新しい専用データから月齢影響のアドバイスを取得"""
+        if not self.lunar_data:
+            return self.get_lunar_advice(lunar_phase)  # フォールバック
+            
+        try:
+            phases = self.lunar_data.get("lunar_phases", {})
+            
+            # 月相に応じたデータを取得
+            if "新月" in lunar_phase:
+                return phases.get("new_moon", {})
+            elif "満月" in lunar_phase:
+                return phases.get("full_moon", {})
+            elif "上弦" in lunar_phase or "まで" in lunar_phase or "三日月" in lunar_phase:
+                return phases.get("waxing_moon", {})
+            elif "下弦" in lunar_phase or "二十六夜" in lunar_phase:
+                return phases.get("waning_moon", {})
+            else:
+                # デフォルトは新月として扱う
+                return phases.get("new_moon", {})
+                
+        except Exception as e:
+            st.warning(f"専用月齢アドバイス取得エラー: {e}")
+            return self.get_lunar_advice(lunar_phase)
     
     def get_integration_guidelines(self) -> Dict[str, Any]:
         """統合ガイドラインを取得"""
@@ -394,6 +465,127 @@ class HealthKnowledgeRAG:
     def _generate_fallback_message(self, weather_info: WeatherInfo) -> str:
         """フォールバックメッセージを生成"""
         return f"本日は{weather_info.快適具合}一日となる予想です。{weather_info.月齢}の時期で{weather_info.気圧状況}の影響もございますので、体調管理にお気をつけください。"
+    
+    def generate_student_focused_message(self, weather_info: WeatherInfo) -> str:
+        """受験生・保護者向けの配慮深いメッセージを生成"""
+        try:
+            # 新しい専用データからアドバイスを取得
+            pressure_advice = self.get_specialized_pressure_advice(weather_info.気圧状況)
+            lunar_advice = self.get_specialized_lunar_advice(weather_info.月齢)
+            
+            # メッセージを統合
+            return self._integrate_student_advice(pressure_advice, lunar_advice)
+            
+        except Exception as e:
+            st.warning(f"受験生向けメッセージ生成エラー: {e}")
+            return self._generate_fallback_message(weather_info)
+    
+    def _integrate_student_advice(self, pressure_advice: Dict[str, Any], lunar_advice: Dict[str, Any]) -> str:
+        """気圧と月齢のアドバイスを統合して受験生向けメッセージを生成"""
+        message_parts = []
+        
+        # 1. 冒頭：優しい気遣いの表現
+        intro = self._create_caring_introduction(pressure_advice, lunar_advice)
+        message_parts.append(intro)
+        
+        # 2. 具体的な体調への影響と対策
+        health_advice = self._create_health_guidance(pressure_advice, lunar_advice)
+        if health_advice:
+            message_parts.append(health_advice)
+        
+        # 3. 学習面でのアドバイス
+        study_advice = self._create_study_guidance(pressure_advice, lunar_advice)
+        if study_advice:
+            message_parts.append(study_advice)
+        
+        # 4. 保護者向けのサポート提案
+        parent_advice = self._create_parent_guidance(pressure_advice, lunar_advice)
+        if parent_advice:
+            message_parts.append(parent_advice)
+        
+        # 5. 締めくくり：励ましと安心の言葉
+        conclusion = self._create_encouraging_conclusion(pressure_advice, lunar_advice)
+        message_parts.append(conclusion)
+        
+        return "".join(message_parts)
+    
+    def _create_caring_introduction(self, pressure_advice: Dict[str, Any], lunar_advice: Dict[str, Any]) -> str:
+        """優しい気遣いの冒頭文を作成"""
+        pressure_tone = pressure_advice.get("tone_elements", {}).get("caring_expression", "")
+        lunar_tone = lunar_advice.get("tone_elements", {}).get("caring_expression", "")
+        
+        if pressure_tone and lunar_tone:
+            return f"{pressure_tone}。また、{lunar_tone}。"
+        elif pressure_tone:
+            return f"{pressure_tone}。"
+        elif lunar_tone:
+            return f"{lunar_tone}。"
+        else:
+            return "受験生の皆様、保護者の皆様、いつもお疲れ様です。"
+    
+    def _create_health_guidance(self, pressure_advice: Dict[str, Any], lunar_advice: Dict[str, Any]) -> str:
+        """体調管理に関するアドバイスを作成"""
+        advice_parts = []
+        
+        # 気圧による影響と対策
+        pressure_student = pressure_advice.get("student_advice", {})
+        if pressure_student.get("immediate_actions"):
+            advice_parts.append(f"体調面では、{pressure_student['immediate_actions']}ことが大切です。")
+        
+        # 月齢による影響と対策（科学的根拠の限界を明記）
+        lunar_student = lunar_advice.get("student_advice", {})
+        if lunar_student.get("self_care"):
+            advice_parts.append(f"また、参考程度ですが、{lunar_student['self_care']}と良いとされています。")
+        
+        return "".join(advice_parts)
+    
+    def _create_study_guidance(self, pressure_advice: Dict[str, Any], lunar_advice: Dict[str, Any]) -> str:
+        """学習面でのアドバイスを作成"""
+        advice_parts = []
+        
+        # 気圧による学習への影響
+        pressure_study = pressure_advice.get("student_advice", {}).get("study_adjustments", "")
+        if pressure_study:
+            advice_parts.append(f"勉強面では、{pressure_study}ことをおすすめします。")
+        
+        # 月齢による学習アプローチ
+        lunar_study = lunar_advice.get("student_advice", {}).get("study_adjustments", "")
+        if lunar_study:
+            advice_parts.append(f"この時期は{lunar_study}のも良いでしょう。")
+        
+        return "".join(advice_parts)
+    
+    def _create_parent_guidance(self, pressure_advice: Dict[str, Any], lunar_advice: Dict[str, Any]) -> str:
+        """保護者向けのアドバイスを作成"""
+        advice_parts = []
+        
+        # 気圧に関する保護者の注意点
+        pressure_parent = pressure_advice.get("parent_guidance", {})
+        if pressure_parent.get("observation_points"):
+            advice_parts.append(f"保護者の方は、{pressure_parent['observation_points']}などにご注意ください。")
+        
+        if pressure_parent.get("support_methods"):
+            advice_parts.append(f"{pressure_parent['support_methods']}といったサポートも効果的です。")
+        
+        return "".join(advice_parts)
+    
+    def _create_encouraging_conclusion(self, pressure_advice: Dict[str, Any], lunar_advice: Dict[str, Any]) -> str:
+        """励ましと安心の締めくくりを作成"""
+        pressure_encouragement = pressure_advice.get("tone_elements", {}).get("encouragement", "")
+        lunar_encouragement = lunar_advice.get("tone_elements", {}).get("encouragement", "")
+        
+        conclusion_options = [
+            "受験は長い道のりですが、体調を第一に、一歩ずつ着実に進んでいきましょう。",
+            "無理をせず、お体を大切にしながら目標に向かって頑張ってください。",
+            "皆様が健康で充実した日々を送られることを心より願っております。"
+        ]
+        
+        if pressure_encouragement:
+            return f"{pressure_encouragement}。{random.choice(conclusion_options)}"
+        elif lunar_encouragement:
+            return f"{lunar_encouragement}。{random.choice(conclusion_options)}"
+        else:
+            return random.choice(conclusion_options)
 
 
 class MessageVariationManager:

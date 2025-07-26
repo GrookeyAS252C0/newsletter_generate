@@ -1,0 +1,98 @@
+{
+  "pressure_conditions": {
+    "low_pressure": {
+      "impact_assessment": {
+        "severity_level": "中度",
+        "evidence_strength": "高",
+        "target_symptoms": ["頭痛", "めまい", "眠気", "だるさ", "集中力低下", "関節痛"]
+      },
+      "medical_mechanism": {
+        "autonomic_nervous_system": "内耳の前庭神経が気圧低下を感知し、自律神経バランスが乱れる",
+        "vascular_response": "脳内血管が拡張し、三叉神経を刺激して痛み物質が放出される",
+        "blood_flow": "脳血流が低下し、酸素不足による集中力低下が発生"
+      },
+      "student_advice": {
+        "immediate_actions": "耳のマッサージ（神門ツボ刺激）、十分な水分補給、適度な休憩を取る",
+        "study_adjustments": "重要な暗記作業は避け、復習中心の軽めの学習に切り替える",
+        "self_care": "朝に太陽光を浴びる、温かい飲み物で血行促進、早めの就寝"
+      },
+      "parent_guidance": {
+        "observation_points": "頭痛やめまいの訴え、普段より疲れやすそうな様子、勉強への集中困難",
+        "support_methods": "静かな環境作り、温かい食事の準備、薬の準備（医師処方薬があれば）",
+        "when_to_worry": "激しい頭痛が続く、吐き気を伴う、起き上がれないほどのめまい"
+      },
+      "tone_elements": {
+        "caring_expression": "今日は気圧の変化で体調を崩しやすい日です",
+        "encouragement": "無理をせず、できる範囲で勉強を進めましょう",
+        "reassurance": "このような日は誰でも調子が出ないものですから、ご心配なさらずに"
+      }
+    },
+    "high_pressure": {
+      "impact_assessment": {
+        "severity_level": "軽度",
+        "evidence_strength": "中",
+        "target_symptoms": ["やる気向上", "集中力アップ", "頭がすっきり"]
+      },
+      "medical_mechanism": {
+        "autonomic_nervous_system": "交感神経が適度に活性化し、覚醒度が向上",
+        "vascular_response": "血管収縮により血流が安定し、脳への酸素供給が良好",
+        "blood_flow": "前頭葉の血流が改善され、思考力・判断力が向上"
+      },
+      "student_advice": {
+        "immediate_actions": "この機会を活かして重要な学習を進める、新しい分野にチャレンジ",
+        "study_adjustments": "難しい問題や暗記作業に取り組む、長時間の集中学習も可能",
+        "self_care": "調子が良くても適度な休憩は必要、水分補給を忘れずに"
+      },
+      "parent_guidance": {
+        "observation_points": "普段より集中している様子、やる気に満ちた表情",
+        "support_methods": "学習環境を整える、栄養バランスの良い食事で体調維持をサポート",
+        "when_to_worry": "過度に頑張りすぎて疲労が蓄積している様子"
+      },
+      "tone_elements": {
+        "caring_expression": "今日は高気圧に恵まれた良いコンディションの日です",
+        "encouragement": "集中力が高まりやすい日なので、しっかりと学習を進められそうですね",
+        "reassurance": "調子の良い日こそ、無理をしすぎず計画的に進めることが大切です"
+      }
+    },
+    "pressure_change": {
+      "impact_assessment": {
+        "severity_level": "中度",
+        "evidence_strength": "高",
+        "target_symptoms": ["頭痛", "めまい", "不安感", "体調不安定", "眠気と覚醒の混在"]
+      },
+      "medical_mechanism": {
+        "autonomic_nervous_system": "急激な気圧変化により自律神経が過敏に反応し、バランスが大きく乱れる",
+        "vascular_response": "血管の収縮・拡張が不安定になり、血流が変動しやすい",
+        "blood_flow": "脳血流の変動により、認知機能が一時的に低下"
+      },
+      "student_advice": {
+        "immediate_actions": "無理な学習は避け、軽いストレッチや深呼吸でリラックス",
+        "study_adjustments": "新しい内容より復習中心、短時間集中で休憩を多めに取る",
+        "self_care": "規則正しい生活リズムを保つ、十分な睡眠時間の確保"
+      },
+      "parent_guidance": {
+        "observation_points": "普段と違う体調の訴え、情緒不安定、勉強への取り組み方の変化",
+        "support_methods": "気圧変化による体調不良であることを理解し、無理をさせない",
+        "when_to_worry": "症状が長時間続く、日常生活に支障をきたすレベルの不調"
+      },
+      "tone_elements": {
+        "caring_expression": "今日は気圧が変化しやすく、体調管理に注意が必要な日です",
+        "encouragement": "気圧の変化は誰にでも影響するもの。焦らずペースを調整しましょう",
+        "reassurance": "一時的な体調の変化ですから、無理をせずお過ごしください"
+      }
+    }
+  },
+  "general_care_tips": {
+    "prevention": [
+      "朝のカーテン開放で体内時計をリセット",
+      "適度な運動習慣で自律神経を安定化",
+      "耳のマッサージで内耳の血流改善",
+      "規則正しい生活リズムの維持"
+    ],
+    "emergency_response": [
+      "激しい頭痛時は暗い場所で安静",
+      "めまいがひどい場合は横になって休む",
+      "吐き気を伴う場合は医療機関受診を検討"
+    ]
+  }
+}

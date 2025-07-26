@@ -300,11 +300,20 @@ class WeatherService:
             from health_knowledge_rag import HealthKnowledgeRAG
             
             rag_system = HealthKnowledgeRAG()
-            rag_message = rag_system.generate_evidence_based_message(weather_info, target_date)
             
-            # RAGメッセージが生成できた場合はそれを使用
+            # 受験生向けの新しいメッセージ生成を試行
+            try:
+                student_message = rag_system.generate_student_focused_message(weather_info)
+                if student_message and len(student_message.strip()) > 10:
+                    st.info("✅ 受験生向けRAGメッセージ生成完了")
+                    return student_message
+            except Exception as e:
+                st.warning(f"受験生向けメッセージ生成失敗: {e}")
+            
+            # フォールバック：従来のRAGメッセージ
+            rag_message = rag_system.generate_evidence_based_message(weather_info, target_date)
             if rag_message and len(rag_message.strip()) > 10:
-                st.info("✅ RAGシステムによるメッセージ生成完了")
+                st.info("✅ 従来RAGシステムによるメッセージ生成完了")
                 return rag_message
             else:
                 st.warning("RAGシステムが利用できないため、従来方式を使用")
