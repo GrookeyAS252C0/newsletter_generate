@@ -6,6 +6,7 @@ Deep Researchで得られた医学的知見を活用した体調管理メッセ�
 import json
 import os
 import random
+import time
 from typing import Dict, List, Any, Optional
 from datetime import date
 import openai
@@ -1030,6 +1031,349 @@ class HealthKnowledgeRAG:
 統合されたメルマガ本文を生成してください。"""
         
         return prompt
+
+
+class ContextualSchoolIntegrator:
+    """コンテキスト連動型学校紹介統合システム"""
+    
+    def __init__(self, openai_client=None):
+        self.openai_client = openai_client
+        self.school_context = self._get_detailed_school_context()
+        self.integration_history = []  # 統合履歴
+        self.max_history_length = 10
+        
+    def _get_detailed_school_context(self) -> str:
+        """詳細な学校コンテキスト情報"""
+        return """
+【日本大学第一中学・高等学校 詳細情報】
+
+【基本情報】
+- 名称: 日本大学第一中学・高等学校（日大一中・日大一高）
+- 所在地: 東京都墨田区横網1-5-2（両国地区）
+- アクセス: JR総武線・都営大江戸線両国駅A1出口徒歩1分
+- 生徒数: 中学605名、高校1042名
+- 共学校: 男女比 男子6：女子4
+
+【教育システムと進路】
+- 6年一貫教育（内部進学率90-95%）
+- 日本大学進学率: 70%超（付属校26校中最高レベル）
+- 日大内第一希望学部合格率: 80%超
+- 他大学進学: 上智・東京理科・学習院・法政等（指定校推薦充実）
+- 基礎学力到達度テスト: 学校授業+無料講習で塾なし対応可能
+
+【部活動・学校生活】
+- 部活動参加率: 63%（中学66.6%、高校61.1%）
+- 校友会理念: 「人生に必要なことを学ぶ場」
+- 1日の流れ: 朝8:15-夕方18:00
+- 年間行事: 文化祭・体育祭・修学旅行等充実
+
+【入試制度】
+- 中学入試: 4回実施（4科2回・2科2回、計200名募集）
+- 高校入試: 単願推薦75名・一般入試75名
+- 推薦基準: 5教科20以上、各学年欠席10日以内等
+
+【学習環境・サポート】
+- 塾なし対応の無料講習制度
+- 提出物管理・小テスト再試験等の手厚いフォロー
+- 進路指導: 個別面談・相談体制充実
+- 図書館・自習室等の学習環境整備
+
+【立地・通学】
+- 両国駅徒歩1分の好立地
+- 下町エリア（江東・江戸川・墨田・葛飾等）から多数通学
+- 都心アクセス良好（東京駅まで6分）
+- 駐輪場なしのため電車通学中心
+
+【校風・特色】
+- 下町の温かい雰囲気
+- 面倒見の良い指導
+- 日大進学を軸とした安定した進路指導
+- 部活動と勉強の両立重視
+"""
+    
+    def integrate_with_school_events(self, school_events: List[str], weather_context: str = "") -> str:
+        """学校行事に関連する学校情報を統合"""
+        if not school_events or not self.openai_client:
+            return self._format_basic_events(school_events)
+        
+        try:
+            # 行事内容から関連する学校情報テーマを抽出
+            related_themes = self._extract_themes_from_events(school_events)
+            
+            # 統合プロンプトを作成
+            integration_prompt = self._create_event_integration_prompt(
+                school_events, related_themes, weather_context
+            )
+            
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": f"あなたは日大一中・高の広報担当です。以下の学校情報を活用してください：\n{self.school_context}"},
+                    {"role": "user", "content": integration_prompt}
+                ],
+                max_tokens=250,
+                temperature=0.6
+            )
+            
+            result = response.choices[0].message.content.strip()
+            
+            # 履歴に追加
+            self._add_to_history("school_events", related_themes)
+            
+            return result
+            
+        except Exception as e:
+            st.warning(f"学校行事統合エラー: {e}")
+            return self._format_basic_events(school_events)
+    
+    def integrate_with_admission_events(self, admission_events: List[str]) -> str:
+        """受験生イベントに関連する学校制度・サポート情報を統合"""
+        if not admission_events or not self.openai_client:
+            return self._format_basic_admission_events(admission_events)
+        
+        try:
+            # 受験イベントから関連する学校制度テーマを抽出
+            related_themes = self._extract_themes_from_admission_events(admission_events)
+            
+            # 統合プロンプトを作成
+            integration_prompt = self._create_admission_integration_prompt(
+                admission_events, related_themes
+            )
+            
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": f"あなたは日大一中・高の入試広報担当です。以下の学校情報を活用してください：\n{self.school_context}"},
+                    {"role": "user", "content": integration_prompt}
+                ],
+                max_tokens=300,
+                temperature=0.6
+            )
+            
+            result = response.choices[0].message.content.strip()
+            
+            # 履歴に追加
+            self._add_to_history("admission_events", related_themes)
+            
+            return result
+            
+        except Exception as e:
+            st.warning(f"受験イベント統合エラー: {e}")
+            return self._format_basic_admission_events(admission_events)
+    
+    def supplement_weekday_story(self, weekday_theme: str, weather_context: str = "") -> str:
+        """曜日別ストーリーに補足情報を追加"""
+        if not self.openai_client:
+            return ""
+        
+        try:
+            # 未使用テーマをチェック
+            unused_themes = self._get_unused_themes()
+            
+            if not unused_themes:
+                return ""  # 補足不要
+            
+            # 補足テーマを選択
+            supplement_theme = self._select_supplement_theme(unused_themes, weekday_theme, weather_context)
+            
+            if not supplement_theme:
+                return ""
+            
+            # 補足情報生成プロンプト
+            supplement_prompt = self._create_supplement_prompt(weekday_theme, supplement_theme, weather_context)
+            
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": f"あなたは日大一中・高の広報担当です。以下の学校情報を活用してください：\n{self.school_context}"},
+                    {"role": "user", "content": supplement_prompt}
+                ],
+                max_tokens=150,
+                temperature=0.7
+            )
+            
+            result = response.choices[0].message.content.strip()
+            
+            # 履歴に追加
+            self._add_to_history("weekday_supplement", [supplement_theme])
+            
+            return result
+            
+        except Exception as e:
+            st.warning(f"曜日別ストーリー補足エラー: {e}")
+            return ""
+    
+    def _extract_themes_from_events(self, events: List[str]) -> List[str]:
+        """学校行事から関連テーマを抽出"""
+        themes = []
+        event_text = " ".join(events).lower()
+        
+        # キーワードマッピング
+        keyword_mappings = {
+            "文化祭": ["部活動", "学校生活", "校風"],
+            "体育祭": ["部活動", "学校生活", "校風"],
+            "修学旅行": ["教育システム", "学校生活"],
+            "入試": ["入試制度", "サポート体制"],
+            "説明会": ["入試制度", "進学実績"],
+            "授業": ["学習環境", "教育システム"],
+            "部活": ["部活動", "学校生活"],
+            "テスト": ["学習環境", "サポート体制"],
+            "進路": ["進学実績", "進路選択"],
+            "面談": ["面倒見", "サポート体制"]
+        }
+        
+        for keyword, related_themes in keyword_mappings.items():
+            if keyword in event_text:
+                themes.extend(related_themes)
+        
+        # 重複除去して最大3テーマまで
+        return list(dict.fromkeys(themes))[:3]
+    
+    def _extract_themes_from_admission_events(self, events: List[str]) -> List[str]:
+        """受験イベントから関連テーマを抽出"""
+        themes = []
+        event_text = " ".join(events).lower()
+        
+        # 受験関連キーワードマッピング
+        keyword_mappings = {
+            "説明会": ["進学実績", "教育システム"],
+            "入試": ["入試制度", "サポート体制"],
+            "体験": ["学習環境", "部活動"],
+            "見学": ["立地環境", "校風"],
+            "相談": ["面倒見", "サポート体制"],
+            "オープン": ["学校生活", "校風"]
+        }
+        
+        for keyword, related_themes in keyword_mappings.items():
+            if keyword in event_text:
+                themes.extend(related_themes)
+        
+        return list(dict.fromkeys(themes))[:2]
+    
+    def _get_unused_themes(self) -> List[str]:
+        """最近使用されていないテーマを取得"""
+        all_themes = [
+            "進学実績", "立地環境", "部活動", "教育システム",
+            "学習環境", "面倒見", "進路選択", "学校生活",
+            "入試制度", "通学環境", "校風", "サポート体制"
+        ]
+        
+        # 過去の履歴から使用済みテーマを抽出
+        recent_themes = []
+        for entry in self.integration_history[-7:]:  # 1週間分
+            recent_themes.extend(entry.get("themes", []))
+        
+        # 未使用テーマを返す
+        return [theme for theme in all_themes if theme not in recent_themes]
+    
+    def _select_supplement_theme(self, unused_themes: List[str], weekday_theme: str, weather_context: str) -> str:
+        """補足テーマを選択"""
+        if not unused_themes:
+            return ""
+        
+        # 天候に応じた重み付け
+        if "雨" in weather_context or "低気圧" in weather_context:
+            preferred = [t for t in unused_themes if t in ["学習環境", "面倒見", "サポート体制"]]
+        elif "晴" in weather_context or "高気圧" in weather_context:
+            preferred = [t for t in unused_themes if t in ["部活動", "立地環境", "学校生活"]]
+        else:
+            preferred = unused_themes
+        
+        if not preferred:
+            preferred = unused_themes
+        
+        return random.choice(preferred)
+    
+    def _add_to_history(self, integration_type: str, themes: List[str]):
+        """統合履歴に追加"""
+        self.integration_history.append({
+            "type": integration_type,
+            "themes": themes,
+            "timestamp": time.time()
+        })
+        
+        if len(self.integration_history) > self.max_history_length:
+            self.integration_history.pop(0)
+    
+    def _format_basic_events(self, events: List[str]) -> str:
+        """基本的な行事フォーマット"""
+        if not events:
+            return "今日はおやすみです。"
+        return "\n".join([f"・{event}" for event in events])
+    
+    def _format_basic_admission_events(self, events: List[str]) -> str:
+        """基本的な受験イベントフォーマット"""
+        if not events:
+            return "現在、2ヶ月以内に予定されている学校説明会等のイベントはございません。最新情報は学校ホームページをご確認ください。"
+        return "\n".join([f"・{event}" for event in events])
+    
+    def _create_event_integration_prompt(self, events: List[str], themes: List[str], weather_context: str) -> str:
+        """学校行事統合プロンプト作成"""
+        events_text = "\n".join([f"・{event}" for event in events])
+        themes_text = "、".join(themes) if themes else "学校生活全般"
+        
+        return f"""今日の学校行事に関連する学校の魅力を自然に統合してください。
+
+【今日の行事】
+{events_text}
+
+【関連する学校の特色テーマ】
+{themes_text}
+
+【要件】
+1. 行事の紹介を最初に行う
+2. 「この行事に関連して」「こうした活動を通じて」等で自然に学校特色を紹介
+3. 100-150文字程度
+4. 受験検討層に学校の魅力が伝わる内容
+5. 具体的で実感できる情報を含める
+
+【出力形式】
+行事紹介+関連する学校特色の統合文章"""
+    
+    def _create_admission_integration_prompt(self, events: List[str], themes: List[str]) -> str:
+        """受験イベント統合プロンプト作成"""
+        events_text = "\n".join([f"・{event}" for event in events])
+        themes_text = "、".join(themes) if themes else "入試制度全般"
+        
+        return f"""受験生イベントに関連する学校制度・サポート情報を自然に統合してください。
+
+【受験生向けイベント】
+{events_text}
+
+【関連する学校制度・サポート】
+{themes_text}
+
+【要件】
+1. イベント情報を最初に提示
+2. 「なお」「ちなみに」「このような機会に」等で自然に学校制度を紹介
+3. 150-200文字程度
+4. 受験生・保護者の不安を解消する情報
+5. 具体的な数値・制度を含める
+
+【出力形式】
+イベント情報+関連する学校制度・サポートの統合文章"""
+    
+    def _create_supplement_prompt(self, weekday_theme: str, supplement_theme: str, weather_context: str) -> str:
+        """曜日別ストーリー補足プロンプト作成"""
+        return f"""曜日別テーマに追加する補足情報を生成してください。
+
+【今日の曜日別テーマ】
+{weekday_theme}
+
+【補足する学校情報】
+{supplement_theme}
+
+【天気・気圧状況】
+{weather_context}
+
+【要件】
+1. 「ところで」「また」「そういえば」等で自然に接続
+2. 80-100文字程度の簡潔な補足
+3. 曜日テーマとは異なる角度からの学校魅力
+4. 初見読者にも分かりやすい内容
+
+【出力形式】
+自然な接続語+補足情報"""
 
 
 class MessageVariationManager:

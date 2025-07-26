@@ -40,6 +40,12 @@ from weather_service import WeatherService
 from youtube_service import YouTubeService
 from utils import DateUtils
 
+# 新しい統合システムをインポート
+try:
+    from health_knowledge_rag import ContextualSchoolIntegrator
+except ImportError:
+    ContextualSchoolIntegrator = None
+
 
 class NewsletterFormatter:
     """メルマガの整形を担当"""
@@ -130,6 +136,19 @@ class NewsletterGenerator:
             self.youtube_service = None
             
         self.formatter = NewsletterFormatter()
+        
+        # 新しい統合システムを初期化
+        if ContextualSchoolIntegrator and config.openai_api_key:
+            try:
+                from openai import OpenAI
+                openai_client = OpenAI(api_key=config.openai_api_key)
+                self.school_integrator = ContextualSchoolIntegrator(openai_client)
+                st.info("✅ コンテキスト連動型学校紹介統合システム初期化完了")
+            except Exception as e:
+                st.warning(f"学校統合システム初期化失敗: {e}")
+                self.school_integrator = None
+        else:
+            self.school_integrator = None
 
 
 
@@ -180,10 +199,49 @@ class NewsletterGenerator:
         # 4. 発行No.の決定
         issue_number = manual_issue_number if manual_issue_number is not None else DateUtils.get_issue_number(target_date)
         
-        # 5. メルマガを生成
-        st.info("📧 Step 5: メルマガコンテンツの生成")
+        # 5. 学校情報統合処理
+        st.info("🏫 Step 5: コンテキスト連動型学校紹介統合")
+        integrated_schedule = schedule_events
+        integrated_events = event_events
+        weekday_supplement = ""
+        
+        if self.school_integrator:
+            try:
+                # 学校行事に関連する学校情報を統合
+                if schedule_events:
+                    weather_context = weather_info.気圧状況 if weather_info else ""
+                    integrated_schedule = self.school_integrator.integrate_with_school_events(
+                        schedule_events, weather_context
+                    )
+                    st.info("✅ 学校行事統合完了")
+                
+                # 受験イベントに関連する学校制度・サポート情報を統合
+                if event_events:
+                    event_strings = [f"{event.date_str}: {event.event}" for event in event_events]
+                    integrated_events = self.school_integrator.integrate_with_admission_events(
+                        event_strings
+                    )
+                    st.info("✅ 受験イベント統合完了")
+                
+                # 曜日別ストーリーの補足情報を生成
+                weekday_theme = DateUtils.get_weekday_theme(target_date)
+                weather_context = weather_info.気圧状況 if weather_info else ""
+                weekday_supplement = self.school_integrator.supplement_weekday_story(
+                    weekday_theme, weather_context
+                )
+                if weekday_supplement:
+                    st.info("✅ 曜日別ストーリー補足完了")
+                
+            except Exception as e:
+                st.warning(f"学校情報統合処理エラー: {e}")
+        else:
+            st.info("学校統合システムが利用できないため、基本フォーマットを使用")
+        
+        # 6. メルマガを生成
+        st.info("📧 Step 6: メルマガコンテンツの生成")
         newsletter_content = self._generate_newsletter_content(
-            weather_text, schedule_events, event_events, youtube_videos, target_date, issue_number
+            weather_text, integrated_schedule, integrated_events, youtube_videos, 
+            target_date, issue_number, weekday_supplement
         )
         st.success("✅ メルマガ生成完了！")
         
@@ -204,9 +262,9 @@ class NewsletterGenerator:
             }
         }
     
-    def _generate_newsletter_content(self, weather_text: str, schedule_events: List[str], 
-                                   event_events: List[EventInfo], youtube_videos: List[YouTubeVideo],
-                                   target_date: date, issue_number: int) -> str:
+    def _generate_newsletter_content(self, weather_text: str, schedule_events, 
+                                   event_events, youtube_videos: List[YouTubeVideo],
+                                   target_date: date, issue_number: int, weekday_supplement: str = "") -> str:
         """Jinja2テンプレートを使用してメルマガコンテンツを生成"""
         template = Template(self._get_newsletter_template())
         
@@ -214,8 +272,21 @@ class NewsletterGenerator:
         weekday = DateUtils.get_japanese_weekday_full(target_date)
         weekday_theme = DateUtils.get_weekday_theme(target_date)
         
-        schedule_text = self.formatter.format_schedule_for_newsletter(schedule_events)
-        event_text = self.formatter.format_events_for_newsletter(event_events)
+        # 統合されたデータの適切なフォーマッティング
+        if isinstance(schedule_events, str):
+            # 既に統合済みの文字列
+            schedule_text = schedule_events
+        else:
+            # 従来のリスト形式
+            schedule_text = self.formatter.format_schedule_for_newsletter(schedule_events)
+        
+        if isinstance(event_events, str):
+            # 既に統合済みの文字列
+            event_text = event_events
+        else:
+            # 従来のEventInfoリスト形式
+            event_text = self.formatter.format_events_for_newsletter(event_events)
+        
         youtube_text = self.formatter.format_youtube_for_newsletter(youtube_videos)
         
         # 生成日時（日本時間）を取得
@@ -231,7 +302,8 @@ class NewsletterGenerator:
             event=event_text,
             youtube=youtube_text,
             曜日=weekday,
-            曜日テーマ=weekday_theme
+            曜日テーマ=weekday_theme,
+            曜日補足=weekday_supplement
         )
     
     def _get_newsletter_template(self) -> str:
@@ -266,7 +338,9 @@ class NewsletterGenerator:
 
 5. 今日の学校案内（{{ 曜日 }}曜日のテーマ：{{ 曜日テーマ }}）
 -----
-
+{% if 曜日補足 %}
+{{ 曜日補足 }}
+{% endif %}
 -----
 
 今回のメルマガは以上となります。
