@@ -1031,6 +1031,109 @@ class HealthKnowledgeRAG:
 統合されたメルマガ本文を生成してください。"""
         
         return prompt
+    
+    def enhance_health_advice_with_school_support(self, health_message: str, weather_info: WeatherInfo) -> str:
+        """健康アドバイスに関連する学校サポート情報を自然に追加"""
+        if not self.openai_client:
+            return health_message
+        
+        try:
+            # 健康アドバイスの内容から関連する学校サポートテーマを抽出
+            support_themes = self._extract_support_themes_from_health_advice(health_message)
+            
+            if not support_themes:
+                return health_message
+            
+            # 学校サポート情報統合プロンプトを作成
+            enhancement_prompt = self._create_health_enhancement_prompt(
+                health_message, support_themes, weather_info
+            )
+            
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "あなたは日本大学第一中学・高等学校の保健担当教員です。生徒の健康管理アドバイスに、学校のサポート体制を自然で温かい文体で組み込んでください。接続語は使わず、文脈の流れで自然に繋げてください。学校情報は提供された実在情報のみ使用し、創作は一切行わないでください。"},
+                    {"role": "user", "content": enhancement_prompt}
+                ],
+                max_tokens=200,
+                temperature=0.6
+            )
+            
+            enhanced_message = response.choices[0].message.content.strip()
+            
+            # 元のメッセージより長く、かつ適切に統合されている場合のみ採用
+            if len(enhanced_message) > len(health_message) * 0.8:
+                return enhanced_message
+            else:
+                return health_message
+                
+        except Exception as e:
+            st.warning(f"健康アドバイス強化エラー: {e}")
+            return health_message
+    
+    def _extract_support_themes_from_health_advice(self, health_message: str) -> List[str]:
+        """健康アドバイスから関連する学校サポートテーマを抽出"""
+        themes = []
+        message_lower = health_message.lower()
+        
+        # キーワードマッピング（健康アドバイス → 学校サポート）
+        keyword_mappings = {
+            "体調管理": ["面倒見", "サポート体制"],
+            "ストレス": ["サポート体制", "面倒見"],
+            "睡眠": ["学習環境", "サポート体制"],
+            "集中": ["学習環境", "教育システム"],
+            "疲労": ["面倒見", "サポート体制"],
+            "頭痛": ["サポート体制", "面倒見"],
+            "勉強": ["学習環境", "教育システム"],
+            "学習": ["学習環境", "教育システム"],
+            "気圧": ["サポート体制", "面倒見"],
+            "月齢": ["サポート体制", "面倒見"],
+            "受験": ["サポート体制", "進路選択"],
+            "保護者": ["面倒見", "サポート体制"]
+        }
+        
+        for keyword, related_themes in keyword_mappings.items():
+            if keyword in message_lower:
+                themes.extend(related_themes)
+        
+        # 重複除去して最大2テーマまで
+        return list(dict.fromkeys(themes))[:2]
+    
+    def _create_health_enhancement_prompt(self, health_message: str, support_themes: List[str], weather_info: WeatherInfo) -> str:
+        """健康アドバイス強化プロンプトを作成"""
+        themes_text = "、".join(support_themes) if support_themes else "サポート体制"
+        
+        return f"""既存の健康アドバイスに、学校のサポート体制を自然に統合してください。
+
+【既存の健康アドバイス】
+{health_message}
+
+【統合する学校サポート情報】
+テーマ: {themes_text}
+
+【学校のサポート体制情報（実在情報のみ使用）】
+- 面倒見: 提出物管理、小テスト再試験制度
+- サポート体制: 塾なし対応の無料講習制度、基礎学力到達度テスト対応
+- 学習環境: 朝8:15-夕方18:00の充実した学校生活
+- 教育システム: 6年一貫教育（内部進学率90-95%）、3段階教育（基礎期・定着期・入試期）
+- 進路実績: 日本大学進学率70%超、日大内第一希望学部合格率80%超
+
+【要件】
+1. 既存の健康アドバイスを完全に保持する
+2. 接続語を使わず、文脈の流れで自然に学校情報を組み込む
+3. 日本大学第一中学・高等学校の魅力が伝わる温かい文体
+4. 150-200文字程度の読みやすい文章
+5. 受験生・保護者が安心し、学校への信頼感を抱く内容
+6. **重要**: 学校情報は上記の実在情報のみ使用し、創作・推測は一切行わない
+
+【避けるべき表現】
+- 「こんにちは」「なお」「ところで」「ちなみに」「そういえば」
+- 営業的・宣伝的な表現
+- 唐突な話題転換
+- 実在しない制度・施設・数値・エピソードの創作
+
+【出力形式】
+既存健康アドバイス + 自然な文脈での学校サポート情報統合"""
 
 
 class ContextualSchoolIntegrator:
@@ -1108,7 +1211,7 @@ class ContextualSchoolIntegrator:
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": f"あなたは日大一中・高の広報担当です。以下の学校情報を活用してください：\n{self.school_context}"},
+                    {"role": "system", "content": f"あなたは日本大学第一中学・高等学校の広報担当です。自然で温かい文体で学校の魅力を伝えてください。接続語は使わず、文脈の流れで自然に情報を組み込んでください。学校情報は提供された実在情報のみ使用し、創作は一切行わないでください。\n{self.school_context}"},
                     {"role": "user", "content": integration_prompt}
                 ],
                 max_tokens=250,
@@ -1143,7 +1246,7 @@ class ContextualSchoolIntegrator:
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": f"あなたは日大一中・高の入試広報担当です。以下の学校情報を活用してください：\n{self.school_context}"},
+                    {"role": "system", "content": f"あなたは日本大学第一中学・高等学校の入試広報担当です。受験生・保護者に安心感を与える自然で温かい文体で学校の魅力を伝えてください。接続語は使わず、文脈の流れで自然に情報を組み込んでください。学校情報は提供された実在情報のみ使用し、創作は一切行わないでください。\n{self.school_context}"},
                     {"role": "user", "content": integration_prompt}
                 ],
                 max_tokens=300,
@@ -1185,7 +1288,7 @@ class ContextualSchoolIntegrator:
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": f"あなたは日大一中・高の広報担当です。以下の学校情報を活用してください：\n{self.school_context}"},
+                    {"role": "system", "content": f"あなたは日本大学第一中学・高等学校の広報担当です。親しみやすく自然な文体で学校の魅力を伝えてください。接続語は使わず、文脈の流れで自然に情報を組み込んでください。学校情報は提供された実在情報のみ使用し、創作は一切行わないでください。\n{self.school_context}"},
                     {"role": "user", "content": supplement_prompt}
                 ],
                 max_tokens=150,
@@ -1321,14 +1424,21 @@ class ContextualSchoolIntegrator:
 {themes_text}
 
 【要件】
-1. 行事の紹介を最初に行う
-2. 「この行事に関連して」「こうした活動を通じて」等で自然に学校特色を紹介
-3. 100-150文字程度
-4. 受験検討層に学校の魅力が伝わる内容
+1. 行事の紹介を自然に行う
+2. 接続語を使わず、行事の説明から学校特色へ文脈で繋げる
+3. 100-150文字程度の読みやすい文章
+4. 受験検討層に学校の魅力が自然に伝わる内容
 5. 具体的で実感できる情報を含める
+6. **重要**: 学校情報は実在する制度・数値・実績のみ使用し、創作は厳禁
+
+【避けるべき表現】
+- 「この行事に関連して」「こうした活動を通じて」「ところで」
+- 宣伝的・営業的な表現
+- 唐突な話題転換
+- 実在しない制度・施設・数値・エピソードの創作
 
 【出力形式】
-行事紹介+関連する学校特色の統合文章"""
+行事紹介から学校特色への自然な流れの統合文章"""
     
     def _create_admission_integration_prompt(self, events: List[str], themes: List[str]) -> str:
         """受験イベント統合プロンプト作成"""
@@ -1344,14 +1454,21 @@ class ContextualSchoolIntegrator:
 {themes_text}
 
 【要件】
-1. イベント情報を最初に提示
-2. 「なお」「ちなみに」「このような機会に」等で自然に学校制度を紹介
-3. 150-200文字程度
-4. 受験生・保護者の不安を解消する情報
-5. 具体的な数値・制度を含める
+1. イベント情報を自然に提示
+2. 接続語を使わず、イベントの説明から学校制度へ文脈で繋げる
+3. 150-200文字程度の読みやすい文章
+4. 受験生・保護者の不安を解消し、安心感を与える情報
+5. 具体的な数値・制度を含めた信頼性のある内容
+6. **重要**: 学校情報は実在する制度・数値・実績のみ使用し、創作は厳禁
+
+【避けるべき表現】
+- 「なお」「ちなみに」「このような機会に」「ところで」
+- 宣伝的・営業的な表現
+- 唐突な話題転換
+- 実在しない制度・施設・数値・エピソードの創作
 
 【出力形式】
-イベント情報+関連する学校制度・サポートの統合文章"""
+イベント情報から学校制度・サポートへの自然な流れの統合文章"""
     
     def _create_supplement_prompt(self, weekday_theme: str, supplement_theme: str, weather_context: str) -> str:
         """曜日別ストーリー補足プロンプト作成"""
@@ -1367,13 +1484,20 @@ class ContextualSchoolIntegrator:
 {weather_context}
 
 【要件】
-1. 「ところで」「また」「そういえば」等で自然に接続
-2. 80-100文字程度の簡潔な補足
-3. 曜日テーマとは異なる角度からの学校魅力
-4. 初見読者にも分かりやすい内容
+1. 接続語を使わず、文脈の流れで自然に補足情報を組み込む
+2. 80-100文字程度の簡潔で読みやすい補足
+3. 曜日テーマとは異なる角度からの学校魅力を伝える
+4. 初見読者にも分かりやすく、親しみやすい内容
+5. **重要**: 学校情報は実在する制度・数値・実績のみ使用し、創作は厳禁
+
+【避けるべき表現】
+- 「ところで」「また」「そういえば」「ちなみに」
+- 宣伝的・営業的な表現
+- 唐突な話題転換
+- 実在しない制度・施設・数値・エピソードの創作
 
 【出力形式】
-自然な接続語+補足情報"""
+自然な文脈での補足情報"""
 
 
 class MessageVariationManager:
