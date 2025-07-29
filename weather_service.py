@@ -309,19 +309,7 @@ class WeatherService:
                 moon_age = getattr(self, 'latest_moon_age', None)
                 student_message = rag_system.generate_student_focused_message(weather_info, moon_age)
                 if student_message and len(student_message.strip()) > 10:
-                    st.info("✅ 受験生向け健康アドバイス生成完了（Phase 1）")
-                    
-                    # 健康アドバイスに関連する学校サポート情報を追加
-                    try:
-                        enhanced_message = rag_system.enhance_health_advice_with_school_support(
-                            student_message, weather_info
-                        )
-                        if enhanced_message and len(enhanced_message) > len(student_message):
-                            st.info("✅ 学校サポート情報統合完了")
-                            return enhanced_message
-                    except Exception as e:
-                        st.warning(f"学校サポート情報統合失敗: {e}")
-                    
+                    st.info("✅ 受験生向け健康アドバイス生成完了")
                     return student_message
             except Exception as e:
                 st.warning(f"受験生向けメッセージ生成失敗: {e}")

@@ -82,16 +82,7 @@ class NewsletterUI:
     
     def _initialize_theme_tracker(self):
         """学校テーマ追跡機能を初期化"""
-        # セッション状態で学校テーマの使用履歴を管理
-        if 'school_theme_history' not in st.session_state:
-            st.session_state.school_theme_history = []
-        
-        # 12テーマリスト
-        self.all_school_themes = [
-            "進学実績", "立地環境", "部活動", "教育システム",
-            "学習環境", "面倒見", "進路選択", "学校生活", 
-            "入試制度", "通学環境", "校風", "サポート体制"
-        ]
+        # 学校テーマ追跡機能は削除済み
     
     def run(self):
         """メインのUI処理"""
@@ -232,8 +223,7 @@ class NewsletterUI:
         
         st.sidebar.success("✅ OpenAI APIキーが設定されています")
         
-        # 12テーマ網羅性表示
-        self._display_theme_coverage_sidebar()
+        # 学校テーマ網羅性表示は削除済み
         
         # 生成ボタンをサイドバーの最下部に配置
         st.sidebar.markdown("---")
@@ -278,117 +268,7 @@ class NewsletterUI:
         
         return calendar_config
     
-    def _display_theme_coverage_sidebar(self):
-        """サイドバーに12テーマの網羅性を表示"""
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("🎯 学校紹介テーマ網羅性")
-        
-        # 過去7日間の使用済みテーマを取得
-        recent_themes = []
-        if len(st.session_state.school_theme_history) > 0:
-            # 最新の7件を取得
-            recent_history = st.session_state.school_theme_history[-7:]
-            for entry in recent_history:
-                if isinstance(entry, dict) and 'themes' in entry:
-                    recent_themes.extend(entry['themes'])
-                elif isinstance(entry, list):
-                    recent_themes.extend(entry)
-                elif isinstance(entry, str):
-                    recent_themes.append(entry)
-        
-        # 重複除去
-        recent_themes = list(set(recent_themes))
-        
-        # 未使用テーマを計算
-        unused_themes = [theme for theme in self.all_school_themes if theme not in recent_themes]
-        
-        # 進捗表示
-        coverage_rate = len(recent_themes) / len(self.all_school_themes) * 100
-        
-        st.sidebar.metric(
-            label="🎯 カバー率（過去7回分）",
-            value=f"{coverage_rate:.1f}%",
-            delta=f"{len(recent_themes)}/{len(self.all_school_themes)} テーマ"
-        )
-        
-        # プログレスバー
-        st.sidebar.progress(coverage_rate / 100)
-        
-        # 使用済みテーマ表示
-        if recent_themes:
-            st.sidebar.markdown("**✅ 最近使用済み:**")
-            for theme in recent_themes[:6]:  # 最大6個表示
-                st.sidebar.markdown(f"• {theme}")
-            if len(recent_themes) > 6:
-                st.sidebar.caption(f"他 {len(recent_themes)-6} テーマ")
-        
-        # 未使用テーマ表示（優先度高）
-        if unused_themes:
-            st.sidebar.markdown("**⚠️ 未使用テーマ:**")
-            for theme in unused_themes[:6]:  # 最大6個表示
-                st.sidebar.markdown(f"• 🔴 {theme}")
-            if len(unused_themes) > 6:
-                st.sidebar.caption(f"他 {len(unused_themes)-6} テーマ")
-        else:
-            st.sidebar.success("🎉 全テーマカバー完了！")
-        
-        # 履歴リセットボタン
-        if st.sidebar.button("🔄 履歴リセット", help="テーマ使用履歴をクリアします"):
-            st.session_state.school_theme_history = []
-            st.sidebar.success("履歴をリセットしました")
-            st.rerun()
-        
-        # 詳細表示の展開
-        with st.sidebar.expander("📊 詳細テーマ一覧"):
-            st.markdown("**全12テーマ:**")
-            for i, theme in enumerate(self.all_school_themes, 1):
-                status = "✅" if theme in recent_themes else "⭕"
-                st.markdown(f"{i:2d}. {status} {theme}")
-    
-    def _update_theme_history(self, used_themes: List[str]):
-        """テーマ使用履歴を更新"""
-        if used_themes:
-            entry = {
-                'timestamp': pd.Timestamp.now().isoformat(),
-                'themes': used_themes
-            }
-            st.session_state.school_theme_history.append(entry)
-            
-            # 履歴が長くなりすぎないよう制限（最大14件 = 2週間分）
-            if len(st.session_state.school_theme_history) > 14:
-                st.session_state.school_theme_history = st.session_state.school_theme_history[-14:]
-    
-    def _extract_and_update_theme_history(self, result: Dict[str, Any]):
-        """生成結果からテーマ情報を抽出して履歴を更新"""
-        try:
-            used_themes = []
-            
-            # ジェネレーターの統合システムから使用テーマを取得
-            if hasattr(self.generator, 'school_integrator') and self.generator.school_integrator:
-                integrator = self.generator.school_integrator
-                
-                # 統合履歴から最新のテーマを抽出
-                if hasattr(integrator, 'integration_history') and integrator.integration_history:
-                    latest_entry = integrator.integration_history[-1]
-                    if 'themes' in latest_entry:
-                        used_themes.extend(latest_entry['themes'])
-                
-                # さらに古い履歴も確認（同一生成セッション内）
-                current_time = time.time()
-                for entry in integrator.integration_history:
-                    if current_time - entry.get('timestamp', 0) < 60:  # 1分以内
-                        used_themes.extend(entry.get('themes', []))
-            
-            # 重複除去
-            used_themes = list(set(used_themes))
-            
-            if used_themes:
-                self._update_theme_history(used_themes)
-                st.sidebar.success(f"🎯 使用テーマ記録: {', '.join(used_themes[:3])}{'...' if len(used_themes) > 3 else ''}")
-            
-        except Exception as e:
-            # エラーが発生してもメイン処理に影響しないよう警告のみ
-            st.sidebar.warning(f"テーマ履歴更新でエラー: {e}")
+    # 学校テーマ追跡機能は削除済み
     
     # [残りのメソッドは元のui.pyと同じ]
     def _display_event_preview(self, publish_date: date):
@@ -447,8 +327,7 @@ class NewsletterUI:
                 # 生成完了メッセージ
                 st.success("✅ メルマガ生成が完了しました！")
                 
-                # 学校テーマ履歴を更新（統合システムが使用されていた場合）
-                self._extract_and_update_theme_history(result)
+                # 学校テーマ履歴機能は削除済み
                 
                 col1, col2 = st.columns([1, 1])
                 
