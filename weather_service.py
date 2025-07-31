@@ -129,6 +129,10 @@ class WeatherService:
         else:
             return "安定した気圧"
     
+    def get_moon_phase_name(self, moon_age: float) -> str:
+        """月齢から月の満ち欠けの名前を取得（public method）"""
+        return self._get_moon_phase_name(moon_age)
+    
     def _get_moon_phase_name(self, moon_age: float) -> str:
         """月齢から月の満ち欠けの名前を取得"""
         # 月齢は0-29.5日の周期

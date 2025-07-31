@@ -48,14 +48,19 @@ class NewsletterFormatter:
     
     @staticmethod
     def format_weather_for_newsletter(weather_info: WeatherInfo, target_date: date, 
-                                    heartwarming_message: str) -> str:
-        """天気情報をメルマガ用の文章に整形"""
+                                    heartwarming_message: str, moon_age: float = None, moon_phase_name: str = None) -> str:
+        """天気情報をメルマガ用の文章に整形（月齢情報付き）"""
         formatted_date = f"{target_date.month}月{target_date.day}日" + DateUtils.get_japanese_weekday(target_date)
+        
+        # 月齢情報の表示部分を作成
+        moon_info = ""
+        if moon_age is not None and moon_phase_name:
+            moon_info = f"\n\n【月齢：{moon_age:.1f}日（{moon_phase_name}）】"
         
         return f"""
 {formatted_date}の天気は{weather_info.天気概況}です。気温は{weather_info.気温}となる予想です。
 湿度は{weather_info.湿度}で、風は{weather_info.風速}となっています。
-降水確率は{weather_info.降水確率}となっており、全体的に{weather_info.快適具合}一日になりそうです。
+降水確率は{weather_info.降水確率}となっており、全体的に{weather_info.快適具合}一日になりそうです。{moon_info}
 
 {heartwarming_message}
 """.strip()
@@ -163,7 +168,14 @@ class NewsletterGenerator:
             weather_info = self.weather_service.extract_weather_info(weather_data, target_date)
             if weather_info:
                 heartwarming_message = self.weather_service.generate_heartwarming_message(weather_info, target_date)
-                weather_text = self.formatter.format_weather_for_newsletter(weather_info, target_date, heartwarming_message)
+                # 月齢データを取得
+                moon_age = self.weather_service.latest_moon_age
+                moon_phase_name = None
+                if moon_age is not None:
+                    moon_phase_name = self.weather_service.get_moon_phase_name(moon_age)
+                weather_text = self.formatter.format_weather_for_newsletter(
+                    weather_info, target_date, heartwarming_message, moon_age, moon_phase_name
+                )
         st.info("✅ 天気情報取得完了")
         
         # 3. YouTube動画情報を取得（発行日と完全一致するもののみ）
