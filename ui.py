@@ -250,7 +250,7 @@ class NewsletterUI:
             'use_google_calendar': use_google_calendar,
             'schedule_calendar_ids': ['nichidai1.haishin@gmail.com'],
             'event_calendar_ids': ['c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814@group.calendar.google.com'],
-            'event_keywords': ['説明会', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭', 'オープンスクール'],
+            'event_keywords': ['説明会', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭', 'オープンスクール', '櫻墨祭'],
             'credentials_path': 'credentials.json',
             'token_path': 'token.json'
         }

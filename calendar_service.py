@@ -304,7 +304,7 @@ class GoogleCalendarService:
                                event_keywords: List[str] = None) -> List[EventInfo]:
         """指定日から2ヶ月以内のイベントを取得（学校説明会等の広報イベント用）"""
         if event_keywords is None:
-            event_keywords = ['説明会', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭']
+            event_keywords = ['説明会', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭', '櫻墨祭']
         
         events = []
         end_date = target_date + timedelta(days=60)
