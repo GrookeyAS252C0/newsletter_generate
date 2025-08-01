@@ -29,16 +29,12 @@ class AppConfig:
     openai_api_key: str
     youtube_api_key: Optional[str]
     user_agent: str = "Newsletter-Generator/1.0 (Educational-Purpose)"
-    weather_url: str = "https://tenki.jp/forecast/3/16/4410/13107/3hours.html"
-    additional_weather_url: str = "https://tenki.jp/forecast/3/16/4410/13107/"
     youtube_channel_handle: str = "nichidaiichi"
     
     @classmethod
     def from_env(cls) -> 'AppConfig':
         """環境変数から設定を読み込み"""
-        # USER_AGENT環境変数を設定（WebBaseLoaderの警告を解消）
         user_agent = os.getenv("USER_AGENT", "Newsletter-Generator/1.0 (Educational-Purpose)")
-        os.environ["USER_AGENT"] = user_agent
         
         # Streamlit Cloudの場合はst.secretsから取得
         try:

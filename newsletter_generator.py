@@ -157,10 +157,9 @@ class NewsletterGenerator:
         event_events = self.event_service.get_events_within_month(target_date)
         st.info(f"✅ 広報イベント取得完了: {len(event_events)} 件")
         
-        # 2. 天気情報を取得・処理（複数ソース）
+        # 2. 天気情報を取得・処理（気象庁互換API）
         st.info("🌤️ Step 3: 天気情報の取得")
-        weather_urls = [self.config.weather_url, self.config.additional_weather_url]
-        weather_data = self.weather_service.load_weather_data(weather_urls)
+        weather_data = self.weather_service.load_weather_data(target_date)
         weather_info = None
         weather_text = ""
         

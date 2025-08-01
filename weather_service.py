@@ -5,14 +5,10 @@
 import json
 import os
 import re
+import requests
 import time
-import warnings
 from datetime import date
 from typing import List, Optional
-
-# USER_AGENT環境変数を確実に設定
-if not os.getenv("USER_AGENT"):
-    os.environ["USER_AGENT"] = "Newsletter-Generator/1.0 (Educational-Purpose)"
 
 try:
     import streamlit as st
@@ -35,14 +31,10 @@ except ImportError:
     raise ImportError("requestsがインストールされていません: pip install requests")
 
 try:
-    # LangChainの警告を抑制してインポート
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="USER_AGENT environment variable not set")
-        from langchain_community.document_loaders import WebBaseLoader
-        from langchain.output_parsers import PydanticOutputParser
-        from langchain.schema import OutputParserException
+    from langchain.output_parsers import PydanticOutputParser
+    from langchain.schema import OutputParserException
 except ImportError:
-    raise ImportError("langchainがインストールされていません: pip install langchain langchain-community")
+    raise ImportError("langchainがインストールされていません: pip install langchain")
 
 from config import WeatherInfo
 from utils import DateUtils
@@ -214,48 +206,95 @@ class WeatherService:
             else:
                 return f"満月まであと{days}日"
     
-    def load_weather_data(self, urls: List[str]) -> str:
-        """複数の天気予報サイトからデータを取得して統合"""
-        combined_content = ""
-        
-        for i, url in enumerate(urls, 1):
-            try:
-                st.info(f"🌐 データソース{i}を取得中: {url}")
-                
-                # 警告を抑制してWebBaseLoaderを作成
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", message="USER_AGENT environment variable not set")
-                    loader = WebBaseLoader(
-                        url,
-                        header_template={
-                            'User-Agent': os.getenv("USER_AGENT", "Newsletter-Generator/1.0 (Educational-Purpose)")
-                        }
-                    )
-                    documents = loader.load()
-                
-                if documents:
-                    content = documents[0].page_content
-                    content = re.sub(r'\n+', '\n', content)
-                    content = re.sub(r'\s+', ' ', content)
-                    combined_content += f"\n\n=== データソース{i} ({url}) ===\n{content.strip()}"
-                    st.success(f"✅ データソース{i}の取得完了")
-                else:
-                    st.warning(f"⚠️ データソース{i}でデータが見つかりませんでした")
-                    
-                # リクエスト間隔を空ける
-                if i < len(urls):
-                    time.sleep(1)
-                    
-            except Exception as e:
-                st.error(f"❌ データソース{i}の取得に失敗: {e}")
-                continue
-        
-        if combined_content:
-            st.success(f"📊 合計{len(urls)}個のデータソースから情報を統合しました")
-            return combined_content.strip()
-        else:
-            st.error("すべてのデータソースの取得に失敗しました")
+    def load_weather_data(self, target_date: date) -> str:
+        """気象庁互換APIから天気予報データを取得"""
+        try:
+            st.info("🌐 気象庁互換APIから天気データを取得中...")
+            
+            # 東京のcityID（墨田区も含む東京地方）
+            city_id = "130010"
+            url = f"https://weather.tsukumijima.net/api/forecast?city={city_id}"
+            
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # 天気データを文章形式に変換
+            weather_text = self._format_weather_api_data(data, target_date)
+            
+            st.success("✅ 気象庁互換APIからのデータ取得完了")
+            return weather_text
+            
+        except Exception as e:
+            st.error(f"❌ 気象庁互換APIの取得に失敗: {e}")
             return ""
+    
+    def _format_weather_api_data(self, data: dict, target_date: date) -> str:
+        """気象庁互換APIのJSONデータを文章形式に変換"""
+        try:
+            target_date_str = target_date.strftime("%Y-%m-%d")
+            
+            # 対象日の予報データを検索
+            target_forecast = None
+            for forecast in data.get("forecasts", []):
+                if forecast.get("date") == target_date_str:
+                    target_forecast = forecast
+                    break
+            
+            if not target_forecast:
+                # 対象日が見つからない場合は最初の予報を使用
+                target_forecast = data.get("forecasts", [{}])[0]
+            
+            # 基本情報を抽出
+            publishing_office = data.get("publishingOffice", "気象庁")
+            title = data.get("title", "東京都 東京 の天気")
+            description_text = data.get("description", {}).get("text", "")
+            
+            # 予報詳細を抽出
+            telop = target_forecast.get("telop", "情報なし")
+            detail_weather = target_forecast.get("detail", {}).get("weather", "")
+            detail_wind = target_forecast.get("detail", {}).get("wind", "")
+            
+            # 気温情報
+            temp_data = target_forecast.get("temperature", {})
+            min_temp = temp_data.get("min", {}).get("celsius")
+            max_temp = temp_data.get("max", {}).get("celsius")
+            
+            # 降水確率
+            rain_chances = target_forecast.get("chanceOfRain", {})
+            
+            # 文章形式で結合
+            formatted_text = f"""
+=== {publishing_office} - {title} ===
+発表日時: {data.get('publicTimeFormatted', '不明')}
+対象日: {target_date.strftime('%Y年%m月%d日')}
+
+【天気概況】
+{telop}
+
+【詳細予報】
+天気: {detail_weather if detail_weather else telop}
+風: {detail_wind if detail_wind else '情報なし'}
+
+【気温】
+最高気温: {max_temp}℃ (最低気温: {min_temp}℃)
+
+【降水確率】
+00-06時: {rain_chances.get('T00_06', '--')}
+06-12時: {rain_chances.get('T06_12', '--')}
+12-18時: {rain_chances.get('T12_18', '--')}
+18-24時: {rain_chances.get('T18_24', '--')}
+
+【気象解説】
+{description_text}
+            """.strip()
+            
+            return formatted_text
+            
+        except Exception as e:
+            st.warning(f"天気データの変換中にエラー: {e}")
+            return f"気象庁互換API データ (変換エラー): {str(data)[:500]}..."
     
     def extract_weather_info(self, weather_data: str, target_date: date) -> Optional[WeatherInfo]:
         """天気データから構造化された情報を抽出"""

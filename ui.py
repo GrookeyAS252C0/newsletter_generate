@@ -209,17 +209,13 @@ class NewsletterUI:
         
         # 天気予報設定
         st.sidebar.subheader("🌐 天気予報設定")
-        st.sidebar.info(f"📍 対象地域: 墨田区")
+        st.sidebar.info(f"📍 対象地域: 墨田区（東京地方）")
         
-        # メインデータソース
-        st.sidebar.markdown("**📊 データソース1（3時間天気）**")
-        st.sidebar.code(self.config.weather_url, language="text")
+        # データソース
+        st.sidebar.markdown("**📊 データソース（気象庁互換API）**")
+        st.sidebar.code("https://weather.tsukumijima.net/api/forecast?city=130010", language="text")
         
-        # 追加データソース
-        st.sidebar.markdown("**📊 データソース2（最低・最高気温詳細）**")
-        st.sidebar.code(self.config.additional_weather_url, language="text")
-        
-        st.sidebar.success("✅ 複数データソースから正確な気温情報を取得")
+        st.sidebar.success("✅ 気象庁互換APIから公式データを取得")
         
         st.sidebar.success("✅ OpenAI APIキーが設定されています")
         
