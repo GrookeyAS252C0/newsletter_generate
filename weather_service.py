@@ -230,6 +230,92 @@ class WeatherService:
             st.error(f"❌ 気象庁互換APIの取得に失敗: {e}")
             return ""
     
+    def get_humidity_data(self, target_date: date) -> dict:
+        """Open-Meteo APIから湿度データを取得"""
+        try:
+            st.info("🌊 Open-Meteo APIから湿度データを取得中...")
+            
+            # 墨田区横網1丁目の座標（日本大学第一中学高等学校周辺）
+            lat = 35.70
+            lon = 139.798
+            
+            # 日別湿度データを取得
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=relative_humidity_2m_max,relative_humidity_2m_min&timezone=Asia%2FTokyo&forecast_days=3"
+            
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # 対象日のデータを検索
+            target_date_str = target_date.strftime("%Y-%m-%d")
+            daily = data.get("daily", {})
+            dates = daily.get("time", [])
+            hum_max = daily.get("relative_humidity_2m_max", [])
+            hum_min = daily.get("relative_humidity_2m_min", [])
+            
+            for i, date_str in enumerate(dates):
+                if date_str == target_date_str:
+                    humidity_data = {
+                        "date": target_date_str,
+                        "humidity_max": hum_max[i] if i < len(hum_max) else None,
+                        "humidity_min": hum_min[i] if i < len(hum_min) else None,
+                        "source": "Open-Meteo API"
+                    }
+                    
+                    # 平均湿度を計算
+                    if humidity_data["humidity_max"] is not None and humidity_data["humidity_min"] is not None:
+                        humidity_data["humidity_avg"] = (humidity_data["humidity_max"] + humidity_data["humidity_min"]) / 2
+                    
+                    st.success(f"✅ 湿度データ取得成功: {humidity_data['humidity_min']}% - {humidity_data['humidity_max']}%")
+                    return humidity_data
+            
+            st.warning(f"⚠️ {target_date_str}の湿度データが見つかりません")
+            return {}
+            
+        except Exception as e:
+            st.error(f"❌ Open-Meteo API湿度データ取得失敗: {e}")
+            return {}
+    
+    def merge_weather_data(self, weather_data: str, humidity_data: dict) -> str:
+        """気象庁互換APIデータとOpen-Meteo湿度データを統合"""
+        if not humidity_data:
+            return weather_data
+        
+        try:
+            # 湿度情報をフォーマット
+            humidity_section = self._format_humidity_section(humidity_data)
+            
+            # 【降水確率】セクションの前に【湿度】セクションを挿入
+            if "【降水確率】" in weather_data:
+                parts = weather_data.split("【降水確率】")
+                merged_data = parts[0] + humidity_section + "\n\n【降水確率】" + parts[1]
+            else:
+                # 【降水確率】が見つからない場合は末尾に追加
+                merged_data = weather_data + "\n\n" + humidity_section
+            
+            st.info("✅ 気象データと湿度データの統合完了")
+            return merged_data
+            
+        except Exception as e:
+            st.warning(f"データ統合中にエラー: {e}")
+            return weather_data
+    
+    def _format_humidity_section(self, humidity_data: dict) -> str:
+        """湿度データをフォーマット"""
+        if not humidity_data:
+            return "【湿度】\nデータなし"
+        
+        hum_min = humidity_data.get("humidity_min")
+        hum_max = humidity_data.get("humidity_max")
+        hum_avg = humidity_data.get("humidity_avg")
+        source = humidity_data.get("source", "Open-Meteo API")
+        
+        if hum_min is not None and hum_max is not None:
+            return f"【湿度】\n最小{hum_min:.0f}% - 最大{hum_max:.0f}% (平均{hum_avg:.0f}%) ※{source}"
+        else:
+            return "【湿度】\nデータなし"
+    
     def _format_weather_api_data(self, data: dict, target_date: date) -> str:
         """気象庁互換APIのJSONデータを文章形式に変換"""
         try:
@@ -237,14 +323,21 @@ class WeatherService:
             
             # 対象日の予報データを検索
             target_forecast = None
-            for forecast in data.get("forecasts", []):
+            next_forecast = None
+            forecasts = data.get("forecasts", [])
+            
+            for i, forecast in enumerate(forecasts):
                 if forecast.get("date") == target_date_str:
                     target_forecast = forecast
+                    # 翌日のデータも取得（気温がnullの場合の参考用）
+                    if i + 1 < len(forecasts):
+                        next_forecast = forecasts[i + 1]
                     break
             
             if not target_forecast:
                 # 対象日が見つからない場合は最初の予報を使用
-                target_forecast = data.get("forecasts", [{}])[0]
+                target_forecast = forecasts[0] if forecasts else {}
+                next_forecast = forecasts[1] if len(forecasts) > 1 else None
             
             # 基本情報を抽出
             publishing_office = data.get("publishingOffice", "気象庁")
@@ -256,10 +349,25 @@ class WeatherService:
             detail_weather = target_forecast.get("detail", {}).get("weather", "")
             detail_wind = target_forecast.get("detail", {}).get("wind", "")
             
-            # 気温情報
+            # 気温情報の処理
             temp_data = target_forecast.get("temperature", {})
             min_temp = temp_data.get("min", {}).get("celsius")
             max_temp = temp_data.get("max", {}).get("celsius")
+            
+            # 当日の気温データがある場合
+            if min_temp is not None and max_temp is not None:
+                temp_info = f"最高気温: {max_temp}℃ (最低気温: {min_temp}℃)"
+            # 当日の気温データがない場合、翌日データを使用
+            elif next_forecast:
+                next_temp = next_forecast.get("temperature", {})
+                next_min = next_temp.get("min", {}).get("celsius")
+                next_max = next_temp.get("max", {}).get("celsius")
+                if next_min is not None and next_max is not None:
+                    temp_info = f"最高気温: {max_temp}℃ (最低気温: {min_temp}℃) ※当日データなし\n翌日予報データ: 最高{next_max}℃ (最低{next_min}℃)"
+                else:
+                    temp_info = "気温データなし"
+            else:
+                temp_info = "気温データなし"
             
             # 降水確率
             rain_chances = target_forecast.get("chanceOfRain", {})
@@ -268,7 +376,7 @@ class WeatherService:
             formatted_text = f"""
 === {publishing_office} - {title} ===
 発表日時: {data.get('publicTimeFormatted', '不明')}
-対象日: {target_date.strftime('%Y年%m月%d日')}
+対象日: {target_date.strftime('%Y年%m月%d日')} ({target_forecast.get('dateLabel', '不明')})
 
 【天気概況】
 {telop}
@@ -278,7 +386,7 @@ class WeatherService:
 風: {detail_wind if detail_wind else '情報なし'}
 
 【気温】
-最高気温: {max_temp}℃ (最低気温: {min_temp}℃)
+{temp_info}
 
 【降水確率】
 00-06時: {rain_chances.get('T00_06', '--')}
@@ -404,38 +512,50 @@ class WeatherService:
                                        target_date_alt: str, format_instructions: str) -> str:
         """天気情報抽出用のプロンプトを構築"""
         return f"""
-以下の複数の墨田区の天気予報データから、{target_date_str}（{target_date_alt}）の天気情報を抽出してください。
+以下の気象庁互換APIの天気予報データから、{target_date_str}（{target_date_alt}）の天気情報を抽出してください。
 
-複数のデータソースから最も正確で詳細な情報を選択して抽出してください。
-特に最低気温・最高気温の情報は正確性を重視してください。
+重要な抽出ルール：
+1. 対象日のデータが利用できない場合のみ、翌日のデータを使用し、その旨を明記してください
+2. 推定・予想は行わず、APIから実際に取得できるデータのみを使用してください
+3. データが取得できない項目は「データなし」と記載してください
 
 抽出する情報：
-1. 気温（最高気温と最低気温）
+1. 気温（最高気温と最低気温を「最高○℃、最低○℃」形式で）
+   - 対象日のデータがnullの場合：翌日のデータを使用し「翌日予報：最高○℃、最低○℃」と記載
+   - データがない場合：「データなし」
+
 2. 湿度
-3. 風速（風向きと速度）
-4. 降水確率（午前・午後別）
-5. 天気概況（晴れ、曇り、雨など）
-6. 快適具合（気温と湿度から判断した過ごしやすさ）
-   基本的な気温基準：
-   - 最高気温30度以上：「とても暑い」
-   - 最高気温27-29度：「暑い」
-   - 最高気温20-27度：「過ごしやすい」
-   - 最高気温10-19度：「肌寒い」または「涼しい」
-   - 最高気温10度未満：「寒い」
-   
-   調整要因：
-   - 湿度80%以上：より不快に感じる（「蒸し暑い」「じめじめ」など）
-   - 雨や雪：体感温度が下がる傾向
-   - 風速：風が強い場合は体感温度に影響
-   これらの要因を総合的に判断して、適切な快適度を決定してください。
+   - Open-Meteo APIからの実測値がある場合：「最小○% - 最大○% (平均○%)」形式で記載
+   - データがない場合：「データなし」
+
+3. 風速（風向きと速度を「○の風○m/s」形式で）
+   - API詳細情報から実際の表記をそのまま抽出
+   - 風速の数値が含まれない場合は表記をそのまま使用
+
+4. 降水確率（時間帯別から午前・午後を統合）
+   - 06-18時の最大値を「午前・日中」、18-06時（翌日）の最大値を「夜間」として記載
+   - データがない時間帯は「--」のまま
+
+5. 天気概況（telopフィールドから抽出）
+   - APIの天気概況をそのまま使用
+
+6. 快適具合（気温と天気から判断）
+   - 実際の気温データがある場合のみ：
+     - 最高気温35度以上：「厳しい暑さ」
+     - 最高気温30-34度：「とても暑い」
+     - 最高気温25-29度：「暑い」
+     - 最高気温20-24度：「過ごしやすい」
+     - 最高気温15-19度：「涼しい」
+     - 最高気温15度未満：「肌寒い」
+   - 気温データがない場合：天気概況から「雨で肌寒い」「曇りで涼しい」程度の表現のみ
 
 {format_instructions}
 
-天気データ（複数ソース）：
+気象庁互換API天気データ：
 {weather_data}
 
 対象日：{target_date_str}
-注意：複数のデータソースがある場合は、最も詳細で正確な情報を優先して使用してください。
+注意：推定は一切行わず、APIから取得できる実データのみを使用してください。
 """
     
     def _build_enhanced_message_generation_prompt(self, weather_info: WeatherInfo, 

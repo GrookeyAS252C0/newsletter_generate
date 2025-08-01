@@ -157,14 +157,23 @@ class NewsletterGenerator:
         event_events = self.event_service.get_events_within_month(target_date)
         st.info(f"✅ 広報イベント取得完了: {len(event_events)} 件")
         
-        # 2. 天気情報を取得・処理（気象庁互換API）
+        # 2. 天気情報を取得・処理（複合API使用）
         st.info("🌤️ Step 3: 天気情報の取得")
+        
+        # 2-1. 気象庁互換APIで基本天気データ取得
         weather_data = self.weather_service.load_weather_data(target_date)
+        
+        # 2-2. Open-Meteo APIで湿度データを補完
+        humidity_data = self.weather_service.get_humidity_data(target_date)
+        
+        # 2-3. 両方のデータを統合
+        combined_weather_data = self.weather_service.merge_weather_data(weather_data, humidity_data)
+        
         weather_info = None
         weather_text = ""
         
-        if weather_data:
-            weather_info = self.weather_service.extract_weather_info(weather_data, target_date)
+        if combined_weather_data:
+            weather_info = self.weather_service.extract_weather_info(combined_weather_data, target_date)
             if weather_info:
                 heartwarming_message = self.weather_service.generate_heartwarming_message(weather_info, target_date)
                 # 月齢データを取得
