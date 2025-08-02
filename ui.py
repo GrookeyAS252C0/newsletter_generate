@@ -211,11 +211,16 @@ class NewsletterUI:
         st.sidebar.subheader("🌐 天気予報設定")
         st.sidebar.info(f"📍 対象地域: 墨田区（東京地方）")
         
+        # データ取得優先度
+        st.sidebar.markdown("**🎯 データ取得優先度**")
+        st.sidebar.info("📅 当日データを最優先で取得")
+        st.sidebar.info("⚠️ 当日データが取得不可時は翌日データで代替・明示")
+        
         # データソース
         st.sidebar.markdown("**📊 データソース（気象庁互換API）**")
         st.sidebar.code("https://weather.tsukumijima.net/api/forecast?city=130010", language="text")
         
-        st.sidebar.success("✅ 気象庁互換APIから公式データを取得")
+        st.sidebar.success("✅ 気象币互換APIから公式データを取得")
         
         st.sidebar.success("✅ OpenAI APIキーが設定されています")
         

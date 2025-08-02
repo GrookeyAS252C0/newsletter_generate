@@ -157,10 +157,11 @@ class NewsletterGenerator:
         event_events = self.event_service.get_events_within_month(target_date)
         st.info(f"✅ 広報イベント取得完了: {len(event_events)} 件")
         
-        # 2. 天気情報を取得・処理（複合API使用）
-        st.info("🌤️ Step 3: 天気情報の取得")
+        # 2. 天気情報を取得・処理（複合API使用・当日優先）
+        st.info("🌤️ Step 3: 天気情報の取得（当日データ最優先）")
         
-        # 2-1. 気象庁互換APIで基本天気データ取得
+        # 2-1. 気象庁互換APIで基本天気データ取得（当日優先）
+        st.info(f"🌡️ {target_date.strftime('%Y年%m月%d日')}の天気データを優先取得中...")
         weather_data = self.weather_service.load_weather_data(target_date)
         
         # 2-2. Open-Meteo APIで湿度データを補完
@@ -184,6 +185,14 @@ class NewsletterGenerator:
                 weather_text = self.formatter.format_weather_for_newsletter(
                     weather_info, target_date, heartwarming_message, moon_age, moon_phase_name
                 )
+        # データ取得状況をユーザーに明示
+        if "当日データ取得不可" in combined_weather_data:
+            st.warning("⚠️ 当日の天気データが取得できないため、代替データで補完しました")
+        elif "当日データなし" in combined_weather_data:
+            st.info("📅 当日の気温データは発表時刻により未発表です")
+        else:
+            st.success("✅ 当日の天気情報を正常に取得しました")
+        
         st.info("✅ 天気情報取得完了")
         
         # 3. YouTube動画情報を取得（発行日と完全一致するもののみ）
