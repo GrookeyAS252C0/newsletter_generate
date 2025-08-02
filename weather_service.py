@@ -39,6 +39,14 @@ except ImportError:
 from config import WeatherInfo
 from utils import DateUtils
 
+# ログシステム（改善版システムが利用可能な場合）
+try:
+    from src.utils.logging_config import logger
+except ImportError:
+    # フォールバック: 基本的なログ
+    import logging
+    logger = logging.getLogger(__name__)
+
 
 class WeatherService:
     """天気予報の取得と処理を担当"""
@@ -48,13 +56,36 @@ class WeatherService:
         self.latest_moon_age = None  # 最新の月齢数値を保存
     
     def get_moon_phase(self, target_date: date) -> str:
-        """月齢情報を取得して月の状態を返す"""
+        """改善された月齢情報を取得（カウントダウン機能付き）"""
+        try:
+            # 新しい月齢計算システムを使用
+            try:
+                from src.utils.moon_phase_calculator import moon_calculator
+                moon_info = moon_calculator.get_moon_phase_info(target_date)
+                
+                # 月齢数値を保存（既存システム互換）
+                self.latest_moon_age = moon_info.moon_age
+                
+                # 拡張された表示を返す
+                return moon_calculator.get_enhanced_moon_display(target_date)
+                
+            except ImportError:
+                # フォールバック: 既存システムを使用
+                logger.warning("新しい月齢システムのインポートに失敗、既存システムを使用")
+                return self._get_moon_phase_fallback(target_date)
+                
+        except Exception as e:
+            logger.error(f"月齢情報の取得でエラー: {e}", e)
+            return "不明"
+    
+    def _get_moon_phase_fallback(self, target_date: date) -> str:
+        """既存の月齢取得システム（フォールバック用）"""
         try:
             # 墨田区の緯度・経度（東京スカイツリー周辺）
             lat = 35.71
             lon = 139.81
             
-            # 月齢APIのURL（まぢぽん製作所）
+            # 月齢API のURL（まぢぽん製作所）
             url = f"https://mgpn.org/api/moon/position.cgi?json&lat={lat}&lon={lon}&y={target_date.year}&m={target_date.month}&d={target_date.day}&h=12"
             
             response = requests.get(url, timeout=10)

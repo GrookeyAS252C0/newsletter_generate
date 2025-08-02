@@ -22,7 +22,7 @@ class ContentController(BaseUIController):
         formatted_date = f"{publish_date.year}年{publish_date.month}月{publish_date.day}日" + DateUtils.get_japanese_weekday(publish_date)
         st.info(f"📅 **メールマガジン発行日**: {formatted_date}")
         
-        col_schedule, col_event, col_youtube = st.columns([1, 1, 1])
+        col_schedule, col_event, col_youtube, col_moon = st.columns([1, 1, 1, 1])
         
         with col_schedule:
             self._render_schedule_events(formatted_date, publish_date, generator)
@@ -32,6 +32,9 @@ class ContentController(BaseUIController):
         
         with col_youtube:
             self._render_youtube_preview()
+        
+        with col_moon:
+            self._render_moon_phase_preview(publish_date)
     
     def _render_schedule_events(self, formatted_date: str, publish_date: date, generator: Any):
         """学校行事の表示"""
@@ -76,6 +79,51 @@ class ContentController(BaseUIController):
         st.subheader("📹 YouTube動画")
         st.caption("YouTube APIから取得（発行日と完全一致） → メルマガの「4. YouTube動画情報」セクションに出力")
         st.info("📺 YouTube動画は「メルマガを生成」ボタンを押したときに取得されます")
+
+    def _render_moon_phase_preview(self, publish_date: date):
+        """月齢プレビューの表示"""
+        st.subheader("🌙 月齢・カウントダウン情報")
+        st.caption("改善された月齢計算システム → メルマガの天気セクションに統合")
+        
+        try:
+            from ..utils.moon_phase_calculator import moon_calculator
+            moon_info = moon_calculator.get_moon_phase_info(publish_date)
+            
+            # 基本月齢情報
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.info(f"🌙 **基本情報**\n- 月相: {moon_info.visual_indicator} {moon_info.phase_name}\n- 月齢: {moon_info.moon_age:.1f}日")
+            
+            with col2:
+                if moon_info.is_special_day:
+                    if "新月" in moon_info.countdown_message:
+                        st.success(f"🌑 **{moon_info.countdown_message}**")
+                    else:
+                        st.success(f"🌕 **{moon_info.countdown_message}**")
+                elif moon_info.countdown_message:
+                    st.warning(f"⏰ **{moon_info.countdown_message}**")
+                else:
+                    st.info(f"📅 次の特別な日まで{moon_info.days_to_next_phase}日")
+            
+            # 詳細情報（エキスパンダー）
+            with st.expander("🔍 月齢計算詳細", expanded=False):
+                st.markdown(f"""
+                **計算詳細:**
+                - 朔望月周期: {moon_calculator.LUNAR_CYCLE:.6f}日
+                - 新月基準: {moon_calculator.NEW_MOON_AGE}日
+                - 満月基準: {moon_calculator.FULL_MOON_AGE:.6f}日
+                - カウントダウン開始: {moon_calculator.COUNTDOWN_DAYS}日前
+                
+                **次の主要月相:**
+                - 次の{moon_info.next_phase_type.replace('_', ' ')}: {moon_info.days_to_next_phase}日後
+                - 視覚インジケーター: {moon_info.visual_indicator}
+                """)
+                
+        except ImportError:
+            st.warning("⚠️ 新しい月齢システムが利用できません（フォールバック使用）")
+        except Exception as e:
+            self.show_error("月齢プレビューの表示に失敗", e)
     
     def render_newsletter_generation(self, publish_date: date, manual_issue_number: Optional[int], generator: Any):
         """メルマガ生成と表示"""
