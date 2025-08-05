@@ -307,6 +307,49 @@ class WeatherService:
         except Exception as e:
             st.error(f"❌ Open-Meteo API湿度データ取得失敗: {e}")
             return {}
+
+    def get_temperature_data(self, target_date: date) -> dict:
+        """Open-Meteo APIから気温データを取得"""
+        try:
+            st.info("🌡️ Open-Meteo APIから気温データを取得中...")
+            
+            # 墨田区横網1丁目の座標（日本大学第一中学高等学校周辺）
+            lat = 35.70
+            lon = 139.798
+            
+            # 日別気温データを取得
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_min,temperature_2m_max&timezone=Asia%2FTokyo&forecast_days=3"
+            
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # 対象日のデータを検索
+            target_date_str = target_date.strftime("%Y-%m-%d")
+            daily = data.get("daily", {})
+            dates = daily.get("time", [])
+            temp_min = daily.get("temperature_2m_min", [])
+            temp_max = daily.get("temperature_2m_max", [])
+            
+            for i, date_str in enumerate(dates):
+                if date_str == target_date_str:
+                    temperature_data = {
+                        "date": target_date_str,
+                        "temperature_min": temp_min[i] if i < len(temp_min) else None,
+                        "temperature_max": temp_max[i] if i < len(temp_max) else None,
+                        "source": "Open-Meteo API"
+                    }
+                    
+                    st.success(f"✅ 気温データ取得成功: 最低{temperature_data['temperature_min']}℃ 最高{temperature_data['temperature_max']}℃")
+                    return temperature_data
+            
+            st.warning(f"⚠️ {target_date_str}の気温データが見つかりません")
+            return {}
+            
+        except Exception as e:
+            st.error(f"❌ Open-Meteo API気温データ取得失敗: {e}")
+            return {}
     
     def merge_weather_data(self, weather_data: str, humidity_data: dict) -> str:
         """気象庁互換APIデータとOpen-Meteo湿度データを統合"""
@@ -385,20 +428,52 @@ class WeatherService:
             min_temp = temp_data.get("min", {}).get("celsius")
             max_temp = temp_data.get("max", {}).get("celsius")
             
-            # 当日の気温データがある場合
-            if min_temp is not None and max_temp is not None:
-                temp_info = f"最高気温: {max_temp}℃ (最低気温: {min_temp}℃)"
-            # 当日の気温データがない場合、翌日データを使用
-            elif next_forecast:
-                next_temp = next_forecast.get("temperature", {})
-                next_min = next_temp.get("min", {}).get("celsius")
-                next_max = next_temp.get("max", {}).get("celsius")
-                if next_min is not None and next_max is not None:
-                    temp_info = f"最高気温: {max_temp}℃ (最低気温: {min_temp}℃) ※当日データなし\n翌日予報データ: 最高{next_max}℃ (最低{next_min}℃)"
+            # Open-Meteoから気温データを取得（最低気温がnullの場合に備えて）
+            open_meteo_temp = self.get_temperature_data(target_date)
+            
+            # 最高気温と最低気温を決定
+            if max_temp is not None:
+                final_max_temp = max_temp
+                max_temp_source = "気象庁"
+            elif open_meteo_temp.get("temperature_max") is not None:
+                final_max_temp = round(open_meteo_temp["temperature_max"])
+                max_temp_source = "Open-Meteo"
+            else:
+                final_max_temp = None
+                max_temp_source = None
+            
+            if min_temp is not None:
+                final_min_temp = min_temp
+                min_temp_source = "気象庁"
+            elif open_meteo_temp.get("temperature_min") is not None:
+                final_min_temp = round(open_meteo_temp["temperature_min"])
+                min_temp_source = "Open-Meteo"
+            else:
+                final_min_temp = None
+                min_temp_source = None
+            
+            # 気温表示を作成
+            if final_max_temp is not None and final_min_temp is not None:
+                if max_temp_source == min_temp_source:
+                    temp_info = f"最高気温: {final_max_temp}℃ (最低気温: {final_min_temp}℃)"
+                else:
+                    temp_info = f"最高気温: {final_max_temp}℃ ({max_temp_source}) (最低気温: {final_min_temp}℃ ({min_temp_source}))"
+            elif final_max_temp is not None:
+                temp_info = f"最高気温: {final_max_temp}℃ ({max_temp_source}) (最低気温: データなし)"
+            elif final_min_temp is not None:
+                temp_info = f"最高気温: データなし (最低気温: {final_min_temp}℃ ({min_temp_source}))"
+            else:
+                # 最後の手段として翌日データを使用
+                if next_forecast:
+                    next_temp = next_forecast.get("temperature", {})
+                    next_min = next_temp.get("min", {}).get("celsius")
+                    next_max = next_temp.get("max", {}).get("celsius")
+                    if next_min is not None and next_max is not None:
+                        temp_info = f"最高気温: {next_max}℃ (最低気温: {next_min}℃) ※当日データなし、翌日予報データを使用"
+                    else:
+                        temp_info = "気温データなし"
                 else:
                     temp_info = "気温データなし"
-            else:
-                temp_info = "気温データなし"
             
             # 降水確率
             rain_chances = target_forecast.get("chanceOfRain", {})
