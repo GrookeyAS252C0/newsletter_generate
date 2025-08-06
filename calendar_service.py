@@ -341,11 +341,15 @@ class GoogleCalendarService:
                     event_title = event.get('summary', '無題のイベント')
                     event_description = event.get('description', '')
                     
+                    # 広報イベントカレンダーの場合は全てのイベントを取得（キーワードフィルタリングなし）
                     # キーワードマッチング
                     keyword_matched = any(keyword in event_title for keyword in event_keywords) or \
                                     any(keyword in event_description for keyword in event_keywords)
                     
-                    if keyword_matched:
+                    # 広報イベント用カレンダーの場合は全イベントを対象とする
+                    is_event_calendar = 'c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814' in calendar_id
+                    
+                    if keyword_matched or is_event_calendar:
                         # イベント日時を取得
                         start = event.get('start', {})
                         event_date = None
