@@ -92,6 +92,19 @@ GOOGLE_CREDENTIALS = '{"type":"service_account","project_id":"your-project-id","
 
 ## 使用方法
 
+### ローカル環境（仮想環境使用）
+
+```bash
+# 簡単起動スクリプト
+./run_local.sh
+
+# または手動で起動
+source env/bin/activate
+streamlit run streamlit_app.py
+```
+
+### システム環境で直接起動
+
 ```bash
 # アプリケーションの起動
 streamlit run streamlit_app.py
