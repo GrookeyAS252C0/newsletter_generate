@@ -1,18 +1,14 @@
-# メルマガ「一日一知」生成システム - Streamlit Cloud対応版
+# Streamlit Cloud - 最小限の依存関係
 
-# Core Web Framework
+# Core Framework
 streamlit
 
-# AI/Language Processing
+# AI/API
 openai
 
-# LangChain (stable versions)
-langchain
-langchain-community
-langchain-openai
-
-# Data Validation  
-pydantic>=2.0.0
+# Data Processing  
+requests
+python-dateutil
 
 # Template Engine
 jinja2
@@ -20,21 +16,14 @@ jinja2
 # Environment Management
 python-dotenv
 
-# Google APIs
-google-api-python-client
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
+# Optional: Google APIs (comment out if causing issues)
+# google-api-python-client
+# google-auth
+# google-auth-oauthlib
+# google-auth-httplib2
 
-# HTTP Requests
-requests
-
-# Date/Time Processing
-python-dateutil
-
-# HTML Parsing (basic compatibility)
-beautifulsoup4
-html5lib
-
-# Note: Removed lxml (compilation issues on Streamlit Cloud)
-# Note: pyperclip is optional and handled in code
+# Optional: Advanced Features (comment out if causing issues)  
+# langchain
+# langchain-community
+# langchain-openai
+# pydantic

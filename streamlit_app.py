@@ -37,17 +37,19 @@ def check_dependencies():
     except ImportError:
         missing_packages.append("streamlit")
     
+    # オプション機能：LangChain
     try:
         from langchain_community.document_loaders import WebBaseLoader
         from langchain.output_parsers import PydanticOutputParser
         from langchain.schema import OutputParserException
     except ImportError:
-        missing_packages.append("langchain langchain-community")
+        pass  # LangChainは高度な機能用なのでオプション
     
+    # オプション機能：Pydantic
     try:
         from pydantic import BaseModel, Field
     except ImportError:
-        missing_packages.append("pydantic")
+        pass  # Pydanticは高度な機能用なのでオプション
     
     try:
         import openai
