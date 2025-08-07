@@ -302,10 +302,7 @@ class GoogleCalendarService:
     
     def get_events_within_month(self, target_date: date, calendar_ids: List[str], 
                                event_keywords: List[str] = None) -> List[EventInfo]:
-        """指定日から2ヶ月以内のイベントを取得（学校説明会等の広報イベント用）"""
-        if event_keywords is None:
-            event_keywords = ['説明会', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭', '櫻墨祭']
-        
+        """指定日から2ヶ月以内のイベントを全て取得（キーワードフィルタリング削除）"""
         events = []
         end_date = target_date + timedelta(days=60)
         
@@ -322,7 +319,7 @@ class GoogleCalendarService:
         
         for calendar_id in calendar_ids:
             try:
-                st.info(f"📅 カレンダー '{calendar_id[:20]}...' から今後60日間のイベントを検索中...")
+                st.info(f"📅 カレンダー '{calendar_id[:20]}...' から今後60日間の全イベントを取得中...")
                 
                 events_result = self.service.events().list(
                     calendarId=calendar_id,
@@ -333,53 +330,42 @@ class GoogleCalendarService:
                 ).execute()
                 
                 calendar_events = events_result.get('items', [])
-                matched_events = 0
+                processed_events = 0
                 
-                st.info(f"🔍 APIから {len(calendar_events)} 件のイベントを取得、キーワードフィルタリング中...")
+                st.info(f"🔍 APIから {len(calendar_events)} 件のイベントを取得、全て処理中...")
                 
                 for event in calendar_events:
                     event_title = event.get('summary', '無題のイベント')
-                    event_description = event.get('description', '')
                     
-                    # 広報イベントカレンダーの場合は全てのイベントを取得（キーワードフィルタリングなし）
-                    # キーワードマッチング
-                    keyword_matched = any(keyword in event_title for keyword in event_keywords) or \
-                                    any(keyword in event_description for keyword in event_keywords)
+                    # キーワードフィルタリングを削除 - 全てのイベントを取得
+                    # イベント日時を取得
+                    start = event.get('start', {})
+                    event_date = None
+                    display_title = event_title
                     
-                    # 広報イベント用カレンダーの場合は全イベントを対象とする
-                    is_event_calendar = 'c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814' in calendar_id
+                    if 'dateTime' in start:
+                        # 時刻指定のイベント
+                        event_datetime = datetime.fromisoformat(start['dateTime'].replace('Z', '+00:00'))
+                        event_date = event_datetime.date()
+                        time_str = event_datetime.astimezone(jst).strftime('%H:%M')
+                        display_title = f"{time_str} {event_title}"
+                    elif 'date' in start:
+                        # 終日イベント
+                        event_date = datetime.fromisoformat(start['date']).date()
                     
-                    if keyword_matched or is_event_calendar:
-                        # イベント日時を取得
-                        start = event.get('start', {})
-                        event_date = None
-                        display_title = event_title
-                        
-                        if 'dateTime' in start:
-                            # 時刻指定のイベント
-                            event_datetime = datetime.fromisoformat(start['dateTime'].replace('Z', '+00:00'))
-                            event_date = event_datetime.date()
-                            time_str = event_datetime.astimezone(jst).strftime('%H:%M')
-                            display_title = f"{time_str} {event_title}"
-                        elif 'date' in start:
-                            # 終日イベント
-                            event_date = datetime.fromisoformat(start['date']).date()
-                        
-                        if event_date and target_date <= event_date <= end_date:
-                            date_display = f"{event_date.month}月{event_date.day}日" + DateUtils.get_japanese_weekday(event_date)
-                            events.append(EventInfo(
-                                date=event_date,
-                                event=display_title,
-                                date_str=date_display
-                            ))
-                            matched_events += 1
-                            st.success(f"✅ マッチ: {event_title} ({event_date})")
-                        else:
-                            st.warning(f"⚠️ 期間外: {event_title} ({event_date})")
+                    if event_date and target_date <= event_date <= end_date:
+                        date_display = f"{event_date.month}月{event_date.day}日" + DateUtils.get_japanese_weekday(event_date)
+                        events.append(EventInfo(
+                            date=event_date,
+                            event=display_title,
+                            date_str=date_display
+                        ))
+                        processed_events += 1
+                        st.success(f"✅ 取得: {event_title} ({event_date})")
                     else:
-                        st.info(f"💡 キーワード不一致: {event_title}")
+                        st.warning(f"⚠️ 期間外: {event_title} ({event_date})")
                 
-                st.success(f"✅ カレンダーから {matched_events} 件の関連イベントを取得")
+                st.success(f"✅ カレンダーから {processed_events} 件の全イベントを取得")
                 
             except HttpError as e:
                 st.warning(f"⚠️ カレンダー '{calendar_id[:20]}...' のイベント取得エラー: {e}")

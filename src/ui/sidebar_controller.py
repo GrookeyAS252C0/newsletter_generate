@@ -97,14 +97,15 @@ class SidebarController(BaseUIController):
             'use_google_calendar': use_google_calendar,
             'schedule_calendar_ids': ['nichidai1.haishin@gmail.com'],
             'event_calendar_ids': ['c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814@group.calendar.google.com'],
-            'event_keywords': ['説明会', '学校説明', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭', 'オープンスクール', '櫻墨祭'],
+            # キーワードフィルタリングを削除 - 全てのイベントを取得
             'credentials_path': 'credentials.json',
             'token_path': 'token.json'
         }
         
         st.sidebar.info("📅 学校行事: nichidai1.haishin@gmail.com")
-        st.sidebar.info("🎉 広報行事: c38f...cb814@group.calendar.google.com")
+        st.sidebar.info("🎉 広報行事: c38f...cb814@group.calendar.google.com")  
         st.sidebar.info("📧 認証: survey-app-service@nichidai-survey-app.iam.gserviceaccount.com")
+        st.sidebar.success("🔄 キーワードフィルタリング無し - 全イベント取得")
         
         return calendar_config
     
