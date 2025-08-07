@@ -1,29 +1,16 @@
-# Streamlit Cloud - 最小限の依存関係
-
-# Core Framework
 streamlit
-
-# AI/API
 openai
-
-# Data Processing  
+langchain
+langchain-community
+langchain-openai
+pydantic
 requests
 python-dateutil
-
-# Template Engine
 jinja2
-
-# Environment Management
 python-dotenv
-
-# Optional: Google APIs (comment out if causing issues)
-# google-api-python-client
-# google-auth
-# google-auth-oauthlib
-# google-auth-httplib2
-
-# Optional: Advanced Features (comment out if causing issues)  
-# langchain
-# langchain-community
-# langchain-openai
-# pydantic
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+beautifulsoup4
+html5lib
