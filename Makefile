@@ -13,8 +13,7 @@ help:
 	@echo "  make format       - コードフォーマット（black）"
 	@echo "  make typecheck    - 型チェック（mypy）"
 	@echo "  make clean        - キャッシュファイルを削除"
-	@echo "  make run          - 元のアプリケーションを起動"
-	@echo "  make run-improved - 改善版アプリケーションを起動"
+	@echo "  make run          - アプリケーションを起動"
 	@echo "  make setup        - 初回セットアップ"
 
 # 依存関係のインストール
@@ -40,10 +39,10 @@ lint:
 	python -m flake8 src/ tests/ --exclude=src/ui/__pycache__,src/core/__pycache__,src/utils/__pycache__
 
 format:
-	python -m black src/ tests/ main_improved.py
+	python -m black src/ tests/ streamlit_app.py
 
 format-check:
-	python -m black --check src/ tests/ main_improved.py
+	python -m black --check src/ tests/ streamlit_app.py
 
 typecheck:
 	python -m mypy src/ --ignore-missing-imports
@@ -63,10 +62,7 @@ clean:
 
 # アプリケーション起動
 run:
-	streamlit run main.py
-
-run-improved:
-	streamlit run main_improved.py
+	streamlit run streamlit_app.py
 
 # 開発環境セットアップ
 setup: install-dev
@@ -74,7 +70,7 @@ setup: install-dev
 	@echo ""
 	@echo "次のステップ:"
 	@echo "1. .envファイルを作成してAPIキーを設定"
-	@echo "2. make run-improved でアプリケーションを起動"
+	@echo "2. make run でアプリケーションを起動"
 	@echo "3. make test でテストを実行"
 
 # CI/CD用のターゲット

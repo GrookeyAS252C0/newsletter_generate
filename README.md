@@ -94,7 +94,7 @@ GOOGLE_CREDENTIALS = '{"type":"service_account","project_id":"your-project-id","
 
 ```bash
 # アプリケーションの起動
-streamlit run main.py
+streamlit run streamlit_app.py
 ```
 
 ブラウザが自動的に開き、アプリケーションが表示されます。
