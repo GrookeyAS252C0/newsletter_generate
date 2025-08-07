@@ -2,3 +2,4 @@ streamlit
 openai
 requests
 python-dateutil
+python-dotenv
