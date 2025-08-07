@@ -89,27 +89,22 @@ class SidebarController(BaseUIController):
         """Google Calendar設定の描画"""
         st.sidebar.subheader("📅 Google Calendar設定")
         
-        use_google_calendar = st.sidebar.checkbox(
-            "Google Calendarを使用",
-            value=True,
-            help="Google Calendarからイベント情報を取得します"
-        )
+        # 強制的にGoogle Calendar を有効化
+        use_google_calendar = True
+        st.sidebar.success("✅ Google Calendar機能は常に有効です")
         
         calendar_config = {
             'use_google_calendar': use_google_calendar,
             'schedule_calendar_ids': ['nichidai1.haishin@gmail.com'],
             'event_calendar_ids': ['c38f50b10481248d05113108d0ba210e7edd5d60abe152ce319c595f011cb814@group.calendar.google.com'],
-            'event_keywords': ['説明会', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭', 'オープンスクール', '櫻墨祭'],
+            'event_keywords': ['説明会', '学校説明', '見学会', 'オープンキャンパス', '体験会', '相談会', '入試', '文化祭', '学園祭', 'オープンスクール', '櫻墨祭'],
             'credentials_path': 'credentials.json',
             'token_path': 'token.json'
         }
         
-        if use_google_calendar:
-            st.sidebar.success("✅ Google Calendar機能が有効です")
-            st.sidebar.info("📅 学校行事: nichidai1.haishin@gmail.com")
-            st.sidebar.info("🎉 広報行事: c38f...cb814@group.calendar.google.com")
-        else:
-            st.sidebar.info("📄 CSVファイルベースのイベント取得を使用します")
+        st.sidebar.info("📅 学校行事: nichidai1.haishin@gmail.com")
+        st.sidebar.info("🎉 広報行事: c38f...cb814@group.calendar.google.com")
+        st.sidebar.info("📧 認証: survey-app-service@nichidai-survey-app.iam.gserviceaccount.com")
         
         return calendar_config
     

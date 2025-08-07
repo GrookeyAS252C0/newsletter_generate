@@ -31,6 +31,10 @@ class MainUIController(BaseUIController):
         self.calendar_config: Optional[dict] = None
         self._last_calendar_config: Optional[dict] = None
     
+    def render(self):
+        """画面描画の実装"""
+        return self.run()
+    
     def run(self):
         """メインUI実行"""
         logger.info("メインUIコントローラー開始")

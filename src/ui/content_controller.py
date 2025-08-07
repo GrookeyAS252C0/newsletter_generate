@@ -16,6 +16,11 @@ class ContentController(BaseUIController):
     
     def __init__(self):
         super().__init__()
+
+    
+    def render(self):
+        """抽象メソッドの実装（ダミー）"""
+        pass
     
     def render_event_preview(self, publish_date: date, generator: Any):
         """イベントプレビューの表示"""
