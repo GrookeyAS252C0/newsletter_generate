@@ -308,6 +308,69 @@ class WeatherService:
             st.error(f"❌ Open-Meteo API湿度データ取得失敗: {e}")
             return {}
 
+    def get_wind_data(self, target_date: date) -> dict:
+        """Open-Meteo APIから風速データを取得"""
+        try:
+            st.info("🌪️ Open-Meteo APIから風速データを取得中...")
+            
+            # 墨田区横網1丁目の座標（日本大学第一中学高等学校周辺）
+            lat = 35.70
+            lon = 139.798
+            
+            # 日別風速データを取得
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=wind_speed_10m_max,wind_direction_10m_dominant&timezone=Asia%2FTokyo&forecast_days=3"
+            
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # 対象日のデータを検索
+            target_date_str = target_date.strftime("%Y-%m-%d")
+            daily = data.get("daily", {})
+            dates = daily.get("time", [])
+            wind_speed = daily.get("wind_speed_10m_max", [])
+            wind_direction = daily.get("wind_direction_10m_dominant", [])
+            
+            for i, date_str in enumerate(dates):
+                if date_str == target_date_str:
+                    wind_data = {
+                        "date": target_date_str,
+                        "wind_speed_max": wind_speed[i] if i < len(wind_speed) else None,
+                        "wind_direction": wind_direction[i] if i < len(wind_direction) else None,
+                        "source": "Open-Meteo API"
+                    }
+                    
+                    # 風向きを方位に変換
+                    if wind_data["wind_direction"] is not None:
+                        wind_data["wind_direction_text"] = self._convert_degrees_to_direction(wind_data["wind_direction"])
+                    
+                    st.success(f"✅ 風速データ取得成功: {wind_data['wind_direction_text']}の風{wind_data['wind_speed_max']:.1f}m/s")
+                    return wind_data
+            
+            st.warning(f"⚠️ {target_date_str}の風速データが見つかりません")
+            return {}
+            
+        except Exception as e:
+            st.error(f"❌ Open-Meteo API風速データ取得失敗: {e}")
+            return {}
+
+    def _convert_degrees_to_direction(self, degrees: float) -> str:
+        """風向き（度数）を方位に変換"""
+        if degrees is None:
+            return "不明"
+        
+        directions = [
+            "北", "北北東", "北東", "東北東",
+            "東", "東南東", "南東", "南南東", 
+            "南", "南南西", "南西", "西南西",
+            "西", "西北西", "北西", "北北西"
+        ]
+        
+        # 360度を16方位に分割（22.5度ずつ）
+        index = int((degrees + 11.25) / 22.5) % 16
+        return directions[index]
+
     def get_temperature_data(self, target_date: date) -> dict:
         """Open-Meteo APIから気温データを取得"""
         try:
@@ -351,24 +414,47 @@ class WeatherService:
             st.error(f"❌ Open-Meteo API気温データ取得失敗: {e}")
             return {}
     
-    def merge_weather_data(self, weather_data: str, humidity_data: dict) -> str:
-        """気象庁互換APIデータとOpen-Meteo湿度データを統合"""
-        if not humidity_data:
-            return weather_data
+    def merge_weather_data(self, weather_data: str, humidity_data: dict, wind_data: dict = None) -> str:
+        """気象庁互換APIデータとOpen-Meteo湿度・風速データを統合"""
+        merged_data = weather_data
         
         try:
-            # 湿度情報をフォーマット
-            humidity_section = self._format_humidity_section(humidity_data)
+            # 湿度情報を統合
+            if humidity_data:
+                humidity_section = self._format_humidity_section(humidity_data)
+                
+                # 【降水確率】セクションの前に【湿度】セクションを挿入
+                if "【降水確率】" in merged_data:
+                    parts = merged_data.split("【降水確率】")
+                    merged_data = parts[0] + humidity_section + "\n\n【降水確率】" + parts[1]
+                else:
+                    # 【降水確率】が見つからない場合は末尾に追加
+                    merged_data = merged_data + "\n\n" + humidity_section
             
-            # 【降水確率】セクションの前に【湿度】セクションを挿入
-            if "【降水確率】" in weather_data:
-                parts = weather_data.split("【降水確率】")
-                merged_data = parts[0] + humidity_section + "\n\n【降水確率】" + parts[1]
-            else:
-                # 【降水確率】が見つからない場合は末尾に追加
-                merged_data = weather_data + "\n\n" + humidity_section
+            # 風速情報を統合
+            if wind_data:
+                wind_section = self._format_wind_section(wind_data)
+                
+                # 【詳細予報】セクション内の風情報を更新
+                if "【詳細予報】" in merged_data and "風: 情報なし" in merged_data:
+                    # 既存の「風: 情報なし」を新しい風情報に置き換え
+                    wind_replacement = f"風: {wind_data.get('wind_direction_text', '不明')}の風{wind_data.get('wind_speed_max', 0):.1f}m/s (Open-Meteo)"
+                    merged_data = merged_data.replace("風: 情報なし", wind_replacement)
+                    st.info("✅ 風情報を Open-Meteo データで更新")
+                elif "【詳細予報】" in merged_data:
+                    # 詳細予報セクションに追加の風情報を挿入
+                    detail_section_start = merged_data.find("【詳細予報】")
+                    detail_section_end = merged_data.find("\n\n【", detail_section_start + 1)
+                    if detail_section_end == -1:
+                        detail_section_end = len(merged_data)
+                    
+                    before_detail = merged_data[:detail_section_end]
+                    after_detail = merged_data[detail_section_end:]
+                    merged_data = before_detail + f"\n補足風情報 (Open-Meteo): {wind_data.get('wind_direction_text', '不明')}の風{wind_data.get('wind_speed_max', 0):.1f}m/s" + after_detail
             
-            st.info("✅ 気象データと湿度データの統合完了")
+            if humidity_data or wind_data:
+                st.info("✅ 気象データと補足データの統合完了")
+            
             return merged_data
             
         except Exception as e:
@@ -389,6 +475,18 @@ class WeatherService:
             return f"【湿度】\n最小{hum_min:.0f}% - 最大{hum_max:.0f}% (平均{hum_avg:.0f}%) ※{source}"
         else:
             return "【湿度】\nデータなし"
+
+    def _format_wind_section(self, wind_data: dict) -> str:
+        """風速データをフォーマット"""
+        if not wind_data or not wind_data.get('wind_speed_max'):
+            return "【風速情報】\nデータなし (Open-Meteo)"
+        
+        wind_speed = wind_data.get('wind_speed_max', 0)
+        wind_direction = wind_data.get('wind_direction_text', '不明')
+        
+        return f"""【風速情報 (Open-Meteo)】
+最大風速: {wind_speed:.1f}m/s
+主風向: {wind_direction}"""
     
     def _format_weather_api_data(self, data: dict, target_date: date) -> str:
         """気象庁互換APIのJSONデータを文章形式に変換"""
@@ -631,14 +729,16 @@ class WeatherService:
    - 当日データ優先：実際の気温がある場合はそのまま使用
    - 当日データがnullの場合：「当日データなし（発表時刻により未発表）」と明記
    - 代替データ使用時：「当日データ取得不可のため○○日データで代替」と明記
-   - 完全にデータがない場合：「データなし"
+   - 完全にデータがない場合：「データなし」
 
 2. 湿度
    - Open-Meteo APIからの実測値がある場合：「最小○% - 最大○% (平均○%)」形式で記載
    - データがない場合：「データなし」
 
 3. 風速（風向きと速度を「○の風○m/s」形式で）
-   - API詳細情報から実際の表記をそのまま抽出
+   - 気象庁API詳細情報から実際の表記をそのまま抽出
+   - 気象庁APIで「情報なし」の場合、Open-Meteoデータがあればそちらを使用し「○の風○m/s (Open-Meteo補完)」と明記
+   - どちらもデータがない場合は「データなし」
    - 風速の数値が含まれない場合は表記をそのまま使用
 
 4. 降水確率（時間帯別から午前・午後を統合）
@@ -668,6 +768,7 @@ class WeatherService:
 - 当日データを最優先で使用し、取得できない場合は明確に理由を記載してください
 - 推定は一切行わず、APIから取得できる実データのみを使用してください
 - 代替データ使用時は必ずその旨を明記してください
+- Open-Meteoから補完された風速データは「(Open-Meteo補完)」を併記してください
 """
     
     def _build_enhanced_message_generation_prompt(self, weather_info: WeatherInfo, 

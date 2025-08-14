@@ -167,8 +167,11 @@ class NewsletterGenerator:
         # 2-2. Open-Meteo APIで湿度データを補完
         humidity_data = self.weather_service.get_humidity_data(target_date)
         
-        # 2-3. 両方のデータを統合
-        combined_weather_data = self.weather_service.merge_weather_data(weather_data, humidity_data)
+        # 2-3. Open-Meteo APIで風速データを補完
+        wind_data = self.weather_service.get_wind_data(target_date)
+        
+        # 2-4. すべてのデータを統合
+        combined_weather_data = self.weather_service.merge_weather_data(weather_data, humidity_data, wind_data)
         
         weather_info = None
         weather_text = ""
